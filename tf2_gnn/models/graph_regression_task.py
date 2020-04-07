@@ -11,6 +11,7 @@ from tf2_gnn.layers import WeightedSumGraphRepresentation, NodesToGraphRepresent
 
 
 class GraphRegressionTask(GraphTaskModel):
+
     @classmethod
     def get_default_hyperparameters(cls, mp_style: Optional[str] = None) -> Dict[str, Any]:
         super_params = super().get_default_hyperparameters(mp_style)
@@ -39,39 +40,35 @@ class GraphRegressionTask(GraphTaskModel):
             self._node_to_graph_repr_layer.build(
                 NodesToGraphRepresentationInput(
                     node_embeddings=tf.TensorShape(
-                        (None, input_shapes["node_features"][-1] + self._params["gnn_hidden_dim"])
-                    ),
+                        (None, input_shapes["node_features"][-1] + self._params["gnn_hidden_dim"])),
                     node_to_graph_map=tf.TensorShape((None)),
                     num_graphs=tf.TensorShape(()),
-                )
-            )
+                ))
 
         super().build(input_shapes)
 
     def compute_task_output(
-        self,
-        batch_features: Dict[str, tf.Tensor],
-        final_node_representations: tf.Tensor,
-        training: bool,
+            self,
+            batch_features: Dict[str, tf.Tensor],
+            final_node_representations: tf.Tensor,
+            training: bool,
     ) -> Any:
         per_graph_results = self._node_to_graph_repr_layer(
             NodesToGraphRepresentationInput(
                 node_embeddings=tf.concat(
-                    [batch_features["node_features"], final_node_representations], axis=-1
-                ),
+                    [batch_features["node_features"], final_node_representations], axis=-1),
                 node_to_graph_map=batch_features["node_to_graph_map"],
                 num_graphs=batch_features["num_graphs_in_batch"],
-            )
-        )  # Shape [G, graph_aggregation_num_heads]
+            ))  # Shape [G, graph_aggregation_num_heads]
         per_graph_results = tf.reduce_sum(per_graph_results, axis=-1)  # Shape [G]
 
         return per_graph_results
 
     def compute_task_metrics(
-        self,
-        batch_features: Dict[str, tf.Tensor],
-        task_output: Any,
-        batch_labels: Dict[str, tf.Tensor],
+            self,
+            batch_features: Dict[str, tf.Tensor],
+            task_output: Any,
+            batch_labels: Dict[str, tf.Tensor],
     ) -> Dict[str, tf.Tensor]:
         mse = tf.losses.mean_squared_error(batch_labels["target_value"], task_output)
         mae = tf.losses.mean_absolute_error(batch_labels["target_value"], task_output)
@@ -85,10 +82,8 @@ class GraphRegressionTask(GraphTaskModel):
 
     def compute_epoch_metrics(self, task_results: List[Any]) -> Tuple[float, str]:
         total_num_graphs = sum(
-            batch_task_result["num_graphs"] for batch_task_result in task_results
-        )
+            batch_task_result["num_graphs"] for batch_task_result in task_results)
         total_absolute_error = sum(
-            batch_task_result["batch_absolute_error"] for batch_task_result in task_results
-        )
+            batch_task_result["batch_absolute_error"] for batch_task_result in task_results)
         epoch_mae = total_absolute_error / total_num_graphs
         return epoch_mae.numpy(), f"Mean Absolute Error = {epoch_mae.numpy():.3f}"

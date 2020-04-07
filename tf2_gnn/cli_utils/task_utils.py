@@ -22,9 +22,8 @@ class TaskInfo(NamedTuple):
 TASK_NAME_TO_DATASET_AND_MODEL_INFO: Dict[str, TaskInfo] = {}
 
 
-def register_task(
-    task_name, dataset_class, dataset_default_hypers, model_class, model_default_hypers
-):
+def register_task(task_name, dataset_class, dataset_default_hypers, model_class,
+                  model_default_hypers):
     TASK_NAME_TO_DATASET_AND_MODEL_INFO[task_name.lower()] = TaskInfo(
         name=task_name,
         dataset_class=dataset_class,

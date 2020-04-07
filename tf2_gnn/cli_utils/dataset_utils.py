@@ -14,8 +14,7 @@ def get_model_file_path(model_path: str, target_suffix: str):
         return model_path[:-3] + target_suffix
     else:
         raise ValueError(
-            f"Model path has to end in hdf5/pkl, which is not the case for {model_path}!"
-        )
+            f"Model path has to end in hdf5/pkl, which is not the case for {model_path}!")
 
 
 def load_dataset_for_prediction(trained_model_file: str):
@@ -30,12 +29,12 @@ def load_dataset_for_prediction(trained_model_file: str):
 
 
 def get_dataset(
-    task_name: Optional[str],
-    dataset_cls: Optional[Type[GraphDataset]],
-    dataset_model_optimised_default_hyperparameters: Dict[str, Any],
-    loaded_data_hyperparameters: Dict[str, Any],
-    cli_data_hyperparameter_overrides: Dict[str, Any],
-    loaded_metadata: Dict[str, Any],
+        task_name: Optional[str],
+        dataset_cls: Optional[Type[GraphDataset]],
+        dataset_model_optimised_default_hyperparameters: Dict[str, Any],
+        loaded_data_hyperparameters: Dict[str, Any],
+        cli_data_hyperparameter_overrides: Dict[str, Any],
+        loaded_metadata: Dict[str, Any],
 ) -> GraphDataset:
     if not dataset_cls:
         (
@@ -58,9 +57,7 @@ def get_dataset(
         dataset_params = loaded_data_hyperparameters
     dataset_params.update(cli_data_hyperparameter_overrides)
     if len(cli_data_hyperparameter_overrides):
-        print(
-            f"  Dataset parameters overridden from CLI: {cli_data_hyperparameter_overrides}"
-        )
+        print(f"  Dataset parameters overridden from CLI: {cli_data_hyperparameter_overrides}")
     if len(loaded_metadata):
         print("  WARNING: Dataset metadata loaded from disk, not calculated from data.")
     return dataset_cls(dataset_params, loaded_metadata)

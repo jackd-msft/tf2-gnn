@@ -12,11 +12,11 @@ class GraphWithPropertySample(GraphSample):
     """Data structure holding a single graph with a single numeric property."""
 
     def __init__(
-        self,
-        adjacency_lists: List[np.ndarray],
-        type_to_node_to_num_incoming_edges: np.ndarray,
-        node_features: List[np.ndarray],
-        target_value: float,
+            self,
+            adjacency_lists: List[np.ndarray],
+            type_to_node_to_num_incoming_edges: np.ndarray,
+            node_features: List[np.ndarray],
+            target_value: float,
     ):
         super().__init__(adjacency_lists, type_to_node_to_num_incoming_edges, node_features)
         self._target_value = target_value
@@ -27,16 +27,12 @@ class GraphWithPropertySample(GraphSample):
         return self._target_value
 
     def __str__(self):
-        return (
-            f"Adj:            {self._adjacency_lists}\n"
-            f"Node_features:  {self._node_features}\n"
-            f"Target_value:   {self._target_value}"
-        )
+        return (f"Adj:            {self._adjacency_lists}\n"
+                f"Node_features:  {self._node_features}\n"
+                f"Target_value:   {self._target_value}")
 
 
-GraphWithPropertySampleType = TypeVar(
-    "GraphWithPropertySampleType", bound=GraphWithPropertySample
-)
+GraphWithPropertySampleType = TypeVar("GraphWithPropertySampleType", bound=GraphWithPropertySample)
 
 
 class JsonLGraphPropertyDataset(JsonLGraphDataset[GraphWithPropertySampleType]):
@@ -67,14 +63,14 @@ class JsonLGraphPropertyDataset(JsonLGraphDataset[GraphWithPropertySampleType]):
         return super_hypers
 
     def __init__(
-        self, params: Dict[str, Any], metadata: Optional[Dict[str, Any]] = None,
+            self,
+            params: Dict[str, Any],
+            metadata: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(params, metadata=metadata)
         self._threshold_for_classification = params["threshold_for_classification"]
 
-    def _process_raw_datapoint(
-        self, datapoint: Dict[str, Any]
-    ) -> GraphWithPropertySampleType:
+    def _process_raw_datapoint(self, datapoint: Dict[str, Any]) -> GraphWithPropertySampleType:
         node_features = datapoint["graph"]["node_features"]
         type_to_adj_list, type_to_num_incoming_edges = self._process_raw_adjacency_lists(
             raw_adjacency_lists=datapoint["graph"]["adjacency_lists"],
@@ -97,9 +93,8 @@ class JsonLGraphPropertyDataset(JsonLGraphDataset[GraphWithPropertySampleType]):
         new_batch["target_value"] = []
         return new_batch
 
-    def _add_graph_to_batch(
-        self, raw_batch: Dict[str, Any], graph_sample: GraphWithPropertySampleType
-    ) -> None:
+    def _add_graph_to_batch(self, raw_batch: Dict[str, Any],
+                            graph_sample: GraphWithPropertySampleType) -> None:
         super()._add_graph_to_batch(raw_batch, graph_sample)
         raw_batch["target_value"].append(graph_sample.target_value)
 
@@ -112,6 +107,10 @@ class JsonLGraphPropertyDataset(JsonLGraphDataset[GraphWithPropertySampleType]):
         return GraphBatchTFDataDescription(
             batch_features_types=data_description.batch_features_types,
             batch_features_shapes=data_description.batch_features_shapes,
-            batch_labels_types={**data_description.batch_labels_types, "target_value": tf.float32},
-            batch_labels_shapes={**data_description.batch_labels_shapes, "target_value": (None,)},
+            batch_labels_types={
+                **data_description.batch_labels_types, "target_value": tf.float32
+            },
+            batch_labels_shapes={
+                **data_description.batch_labels_shapes, "target_value": (None,)
+            },
         )

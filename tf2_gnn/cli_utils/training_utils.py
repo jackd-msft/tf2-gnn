@@ -32,15 +32,15 @@ def log_line(log_file: str, msg: str):
 
 
 def train(
-    model: GraphTaskModel,
-    dataset: GraphDataset,
-    log_fun: Callable[[str], None],
-    run_id: str,
-    max_epochs: int,
-    patience: int,
-    save_dir: str,
-    quiet: bool = False,
-    aml_run=None,
+        model: GraphTaskModel,
+        dataset: GraphDataset,
+        log_fun: Callable[[str], None],
+        run_id: str,
+        max_epochs: int,
+        patience: int,
+        save_dir: str,
+        quiet: bool = False,
+        aml_run=None,
 ):
     train_data = dataset.get_tensorflow_dataset(DataFold.TRAIN).prefetch(3)
     valid_data = dataset.get_tensorflow_dataset(DataFold.VALIDATION).prefetch(3)
@@ -55,20 +55,18 @@ def train(
     train_time_start = time.time()
     for epoch in range(1, max_epochs + 1):
         log_fun(f"== Epoch {epoch}")
-        train_loss, train_speed, train_results = model.run_one_epoch(
-            train_data, training=True, quiet=quiet
-        )
+        train_loss, train_speed, train_results = model.run_one_epoch(train_data,
+                                                                     training=True,
+                                                                     quiet=quiet)
         train_metric, train_metric_string = model.compute_epoch_metrics(train_results)
         log_fun(
-            f" Train:  {train_loss:.4f} loss | {train_metric_string} | {train_speed:.2f} graphs/s",
-        )
-        valid_loss, valid_speed, valid_results = model.run_one_epoch(
-            valid_data, training=False, quiet=quiet
-        )
+            f" Train:  {train_loss:.4f} loss | {train_metric_string} | {train_speed:.2f} graphs/s",)
+        valid_loss, valid_speed, valid_results = model.run_one_epoch(valid_data,
+                                                                     training=False,
+                                                                     quiet=quiet)
         valid_metric, valid_metric_string = model.compute_epoch_metrics(valid_results)
         log_fun(
-            f" Valid:  {valid_loss:.4f} loss | {valid_metric_string} | {valid_speed:.2f} graphs/s",
-        )
+            f" Valid:  {valid_loss:.4f} loss | {valid_metric_string} | {valid_speed:.2f} graphs/s",)
 
         if aml_run is not None:
             aml_run.log("task_train_metric", float(train_metric))
@@ -88,8 +86,7 @@ def train(
             total_time = time.time() - train_time_start
             log_fun(
                 f"Stopping training after {patience} epochs without "
-                f"improvement on validation metric.",
-            )
+                f"improvement on validation metric.",)
             log_fun(f"Training took {total_time}s. Best validation metric: {best_valid_metric}",)
             break
     return save_file
@@ -109,7 +106,7 @@ def run_train_from_args(args, hyperdrive_hyperparameter_overrides: Dict[str, str
     os.makedirs(args.save_dir, exist_ok=True)
     run_id = make_run_id(args.model, args.task)
     log_file = os.path.join(args.save_dir, f"{run_id}.log")
-    
+
     def log(msg):
         log_line(log_file, msg)
 
@@ -171,7 +168,7 @@ def run_train_from_args(args, hyperdrive_hyperparameter_overrides: Dict[str, str
             aml_run.log("task_test_metric", float(test_metric))
 
 
-def get_train_cli_arg_parser(default_model_type: Optional[str]=None):
+def get_train_cli_arg_parser(default_model_type: Optional[str] = None):
     """
     Get an argparse argument parser object with common options for training
     GNN-based models.
@@ -244,10 +241,17 @@ def get_train_cli_arg_parser(default_model_type: Optional[str]=None):
         help="Maximal number of epochs to continue training without improvement.",
     )
     parser.add_argument(
-        "--seed", dest="random_seed", type=int, default=0, help="Random seed to use.",
+        "--seed",
+        dest="random_seed",
+        type=int,
+        default=0,
+        help="Random seed to use.",
     )
     parser.add_argument(
-        "--run-name", dest="run_name", type=str, help="A human-readable name for this run.",
+        "--run-name",
+        dest="run_name",
+        type=str,
+        help="A human-readable name for this run.",
     )
     parser.add_argument(
         "--azure-info",
@@ -259,16 +263,21 @@ def get_train_cli_arg_parser(default_model_type: Optional[str]=None):
     parser.add_argument(
         "--load-saved-model",
         dest="load_saved_model",
-        help="Optional location to load initial model weights from. Should be model stored in earlier run.",
+        help=
+        "Optional location to load initial model weights from. Should be model stored in earlier run.",
     )
     parser.add_argument(
         "--load-weights-only",
         dest="load_weights_only",
         action="store_true",
-        help="Optional to only load the weights of the model rather than class and dataset for further training (used in fine-tuning on pretrained network). Should be model stored in earlier run.",
+        help=
+        "Optional to only load the weights of the model rather than class and dataset for further training (used in fine-tuning on pretrained network). Should be model stored in earlier run.",
     )
     parser.add_argument(
-        "--quiet", dest="quiet", action="store_true", help="Generate less output during training.",
+        "--quiet",
+        dest="quiet",
+        action="store_true",
+        help="Generate less output during training.",
     )
     parser.add_argument(
         "--run-test",
@@ -289,7 +298,8 @@ def get_train_cli_arg_parser(default_model_type: Optional[str]=None):
         "--hyperdrive-arg-parse",
         dest="hyperdrive_arg_parse",
         action="store_true",
-        help='Enable hyperdrive argument parsing, in which unknown options "--key val" are interpreted as hyperparameter "key" with value "val".',
+        help=
+        'Enable hyperdrive argument parsing, in which unknown options "--key val" are interpreted as hyperparameter "key" with value "val".',
     )
 
     return parser

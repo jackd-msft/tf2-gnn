@@ -71,9 +71,7 @@ class GNN(tf.keras.layers.Layer):
         }  # type: Dict[str, Any]
         if mp_style is not None:
             these_hypers["message_calculation_class"] = mp_style
-        message_passing_class = get_message_passing_class(
-            these_hypers["message_calculation_class"]
-        )
+        message_passing_class = get_message_passing_class(these_hypers["message_calculation_class"])
         message_passing_hypers = message_passing_class.get_default_hyperparameters()
         message_passing_hypers.update(these_hypers)
         return message_passing_hypers
@@ -88,14 +86,10 @@ class GNN(tf.keras.layers.Layer):
         self._residual_every_num_layers = params["residual_every_num_layers"]
         self._use_inter_layer_layernorm = params["use_inter_layer_layernorm"]
         self._initial_node_representation_activation_fn = get_activation_function(
-            params["initial_node_representation_activation"]
-        )
+            params["initial_node_representation_activation"])
         self._dense_intermediate_layer_activation_fn = get_activation_function(
-            params["dense_intermediate_layer_activation"]
-        )
-        self._message_passing_class = get_message_passing_class(
-            params["message_calculation_class"]
-        )
+            params["dense_intermediate_layer_activation"])
+        self._message_passing_class = get_message_passing_class(params["message_calculation_class"])
 
         if not params["global_exchange_mode"].lower() in {"mean", "mlp", "gru"}:
             raise ValueError(
@@ -144,19 +138,15 @@ class GNN(tf.keras.layers.Layer):
             for layer_idx in range(self._num_layers):
                 with tf.name_scope(f"Layer_{layer_idx}"):
                     with tf.name_scope("MessagePassing"):
-                        self._mp_layers.append(
-                            self._message_passing_class(self._params)
-                        )
+                        self._mp_layers.append(self._message_passing_class(self._params))
                         self._mp_layers[-1].build(
-                            MessagePassingInput(embedded_shape, adjacency_list_shapes)
-                        )
+                            MessagePassingInput(embedded_shape, adjacency_list_shapes))
 
                     # If required, prepare for a LayerNorm:
                     if self._use_inter_layer_layernorm:
                         with tf.name_scope(f"LayerNorm"):
                             self._inter_layer_layernorms.append(
-                                tf.keras.layers.LayerNormalization()
-                            )
+                                tf.keras.layers.LayerNormalization())
                             self._inter_layer_layernorms[-1].build(embedded_shape)
 
                     # Construct the per-node dense layers.
@@ -169,10 +159,7 @@ class GNN(tf.keras.layers.Layer):
                             )
                             self._dense_layers[str(layer_idx)].build(embedded_shape)
 
-                    if (
-                        layer_idx
-                        and layer_idx % self._global_exchange_every_num_layers == 0
-                    ):
+                    if (layer_idx and layer_idx % self._global_exchange_every_num_layers == 0):
                         with tf.name_scope(f"Global_Exchange"):
                             if self._global_exchange_mode.lower() == "mean":
                                 exchange_layer_class = GraphGlobalMeanExchange
@@ -188,16 +175,11 @@ class GNN(tf.keras.layers.Layer):
                             )
                             exchange_layer.build(
                                 GraphGlobalExchangeInput(
-                                    node_embeddings=tf.TensorShape(
-                                        (None, self._hidden_dim)
-                                    ),
+                                    node_embeddings=tf.TensorShape((None, self._hidden_dim)),
                                     node_to_graph_map=tf.TensorShape((None,)),
                                     num_graphs=tf.TensorShape(()),
-                                )
-                            )
-                            self._global_exchange_layers[
-                                str(layer_idx)
-                            ] = exchange_layer
+                                ))
+                            self._global_exchange_layers[str(layer_idx)] = exchange_layer
 
         super().build(tensor_shapes)
 
@@ -217,21 +199,21 @@ class GNN(tf.keras.layers.Layer):
         # handle this, we let the core function _always_ return all representations (and trace
         # that for performance reasons), and then use a thin wrapper `call` function to drop
         # the unneeded return value if needed.
-        internal_call_input_spec = (
-            GNNInput(
-                node_features=tf.TensorSpec(shape=variable_node_features_shape, dtype=tf.float32),
-                adjacency_lists=tuple(
-                    tf.TensorSpec(shape=(None, 2), dtype=tf.int32)
-                    for _ in range(len(adjacency_list_shapes))
-                ),
-                node_to_graph_map=tf.TensorSpec(shape=(None,), dtype=tf.int32),
-                num_graphs=tf.TensorSpec(shape=(), dtype=tf.int32),
-            ),
-            tf.TensorSpec(shape=(), dtype=tf.bool)
-        )
-        setattr(self, "_internal_call", tf.function(func=self._internal_call, input_signature=internal_call_input_spec))
+        internal_call_input_spec = (GNNInput(
+            node_features=tf.TensorSpec(shape=variable_node_features_shape, dtype=tf.float32),
+            adjacency_lists=tuple(
+                tf.TensorSpec(shape=(None, 2), dtype=tf.int32)
+                for _ in range(len(adjacency_list_shapes))),
+            node_to_graph_map=tf.TensorSpec(shape=(None,), dtype=tf.int32),
+            num_graphs=tf.TensorSpec(shape=(), dtype=tf.int32),
+        ), tf.TensorSpec(shape=(), dtype=tf.bool))
+        setattr(self, "_internal_call",
+                tf.function(func=self._internal_call, input_signature=internal_call_input_spec))
 
-    def call(self, inputs: GNNInput, training: bool = False, return_all_representations: bool = False):
+    def call(self,
+             inputs: GNNInput,
+             training: bool = False,
+             return_all_representations: bool = False):
         """
         Args:
             inputs: A GNNInput containing the following fields:
@@ -284,8 +266,7 @@ class GNN(tf.keras.layers.Layer):
         for layer_idx, mp_layer in enumerate(self._mp_layers):
             if training:
                 cur_node_representations = tf.nn.dropout(
-                    cur_node_representations, rate=self._params["layer_input_dropout_rate"]
-                )
+                    cur_node_representations, rate=self._params["layer_input_dropout_rate"])
 
             # Pass residuals through:
             if layer_idx % self._residual_every_num_layers == 0:
@@ -297,9 +278,8 @@ class GNN(tf.keras.layers.Layer):
 
             # Apply this message passing layer.
             cur_node_representations = mp_layer(
-                MessagePassingInput(
-                    node_embeddings=cur_node_representations, adjacency_lists=adjacency_lists
-                ),
+                MessagePassingInput(node_embeddings=cur_node_representations,
+                                    adjacency_lists=adjacency_lists),
                 training=training,
             )
             all_node_representations.append(cur_node_representations)
@@ -317,14 +297,12 @@ class GNN(tf.keras.layers.Layer):
             # If required, apply a LayerNorm:
             if self._use_inter_layer_layernorm:
                 cur_node_representations = self._inter_layer_layernorms[layer_idx](
-                    cur_node_representations
-                )
+                    cur_node_representations)
 
             # Apply dense layer, if needed.
             if layer_idx % self._dense_every_num_layers == 0:
                 cur_node_representations = self._dense_layers[str(layer_idx)](
-                    cur_node_representations, training=training
-                )
+                    cur_node_representations, training=training)
 
         return cur_node_representations, all_node_representations
 

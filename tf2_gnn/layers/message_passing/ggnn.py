@@ -66,27 +66,27 @@ class GGNN(GNN_Edge_MLP):
         super().build(input_shapes)
 
     def _compute_new_node_embeddings(
-        self,
-        cur_node_embeddings: tf.Tensor,
-        messages_per_type: List[tf.Tensor],
-        edge_type_to_message_targets: List[tf.Tensor],
-        num_nodes: tf.Tensor,
-        training: bool,
+            self,
+            cur_node_embeddings: tf.Tensor,
+            messages_per_type: List[tf.Tensor],
+            edge_type_to_message_targets: List[tf.Tensor],
+            num_nodes: tf.Tensor,
+            training: bool,
     ):
         # Let M be the number of messages (sum of all E):
         message_targets = tf.concat(edge_type_to_message_targets, axis=0)  # Shape [M]
         messages = tf.concat(messages_per_type, axis=0)  # Shape [M, H]
 
-        aggregated_messages = self._aggregation_fn(
-            data=messages, segment_ids=message_targets, num_segments=num_nodes
-        )
+        aggregated_messages = self._aggregation_fn(data=messages,
+                                                   segment_ids=message_targets,
+                                                   num_segments=num_nodes)
 
-        new_node_embeddings, _ = self._recurrent_unit(
-            inputs=aggregated_messages,
-            states=[cur_node_embeddings],
-            training=training)
+        new_node_embeddings, _ = self._recurrent_unit(inputs=aggregated_messages,
+                                                      states=[cur_node_embeddings],
+                                                      training=training)
 
         return new_node_embeddings
+
 
 if __name__ == "__main__":
     import doctest

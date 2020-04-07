@@ -21,11 +21,11 @@ class GraphGlobalExchange(tf.keras.layers.Layer):
     """Update node representations based on graph-global information."""
 
     def __init__(
-        self,
-        hidden_dim: int,
-        weighting_fun: str = "softmax",
-        num_heads: int = 4,
-        dropout_rate: float = 0.0,
+            self,
+            hidden_dim: int,
+            weighting_fun: str = "softmax",
+            num_heads: int = 4,
+            dropout_rate: float = 0.0,
     ):
         """Initialise the layer."""
         super().__init__()
@@ -54,8 +54,7 @@ class GraphGlobalExchange(tf.keras.layers.Layer):
                 node_embeddings=tensor_shapes.node_embeddings,
                 node_to_graph_map=tensor_shapes.node_to_graph_map,
                 num_graphs=tensor_shapes.num_graphs,
-            )
-        )
+            ))
 
         super().build(tensor_shapes)
 
@@ -80,9 +79,9 @@ class GraphGlobalExchange(tf.keras.layers.Layer):
         """
         pass
 
-    def _compute_per_node_graph_representations(
-        self, inputs: GraphGlobalExchangeInput, training: bool = False
-    ):
+    def _compute_per_node_graph_representations(self,
+                                                inputs: GraphGlobalExchangeInput,
+                                                training: bool = False):
         cur_graph_representations = self._node_to_graph_representation_layer(
             NodesToGraphRepresentationInput(
                 node_embeddings=inputs.node_embeddings,
@@ -93,24 +92,23 @@ class GraphGlobalExchange(tf.keras.layers.Layer):
         )  # Shape [G, hidden_dim]
 
         per_node_graph_representations = gather_dense_gradient(
-            cur_graph_representations, inputs.node_to_graph_map
-        )  # Shape [V, hidden_dim]
+            cur_graph_representations, inputs.node_to_graph_map)  # Shape [V, hidden_dim]
 
         if training:
-            per_node_graph_representations = tf.nn.dropout(
-                per_node_graph_representations, rate=self._dropout_rate
-            )
+            per_node_graph_representations = tf.nn.dropout(per_node_graph_representations,
+                                                           rate=self._dropout_rate)
 
         return per_node_graph_representations
 
 
 class GraphGlobalMeanExchange(GraphGlobalExchange):
+
     def __init__(
-        self,
-        hidden_dim: int,
-        weighting_fun: str = "softmax",
-        num_heads: int = 4,
-        dropout_rate: float = 0.0,
+            self,
+            hidden_dim: int,
+            weighting_fun: str = "softmax",
+            num_heads: int = 4,
+            dropout_rate: float = 0.0,
     ):
         """Initialise the layer."""
         super().__init__(hidden_dim, weighting_fun, num_heads, dropout_rate)
@@ -121,18 +119,18 @@ class GraphGlobalMeanExchange(GraphGlobalExchange):
 
     def call(self, inputs: GraphGlobalExchangeInput, training: bool = False):
         per_node_graph_representations = self._compute_per_node_graph_representations(
-            inputs, training
-        )
+            inputs, training)
         return (inputs.node_embeddings + per_node_graph_representations) / 2
 
 
 class GraphGlobalGRUExchange(GraphGlobalExchange):
+
     def __init__(
-        self,
-        hidden_dim: int,
-        weighting_fun: str = "softmax",
-        num_heads: int = 4,
-        dropout_rate: float = 0.0,
+            self,
+            hidden_dim: int,
+            weighting_fun: str = "softmax",
+            num_heads: int = 4,
+            dropout_rate: float = 0.0,
     ):
         """Initialise the layer."""
         super().__init__(hidden_dim, weighting_fun, num_heads, dropout_rate)
@@ -145,8 +143,7 @@ class GraphGlobalGRUExchange(GraphGlobalExchange):
 
     def call(self, inputs: GraphGlobalExchangeInput, training: bool = False):
         per_node_graph_representations = self._compute_per_node_graph_representations(
-            inputs, training
-        )
+            inputs, training)
         cur_node_representations, _ = self._gru_cell(
             inputs=per_node_graph_representations,
             states=[inputs.node_embeddings],
@@ -156,12 +153,13 @@ class GraphGlobalGRUExchange(GraphGlobalExchange):
 
 
 class GraphGlobalMLPExchange(GraphGlobalExchange):
+
     def __init__(
-        self,
-        hidden_dim: int,
-        weighting_fun: str = "softmax",
-        num_heads: int = 4,
-        dropout_rate: float = 0.0,
+            self,
+            hidden_dim: int,
+            weighting_fun: str = "softmax",
+            num_heads: int = 4,
+            dropout_rate: float = 0.0,
     ):
         """Initialise the layer."""
         super().__init__(hidden_dim, weighting_fun, num_heads, dropout_rate)
@@ -174,8 +172,7 @@ class GraphGlobalMLPExchange(GraphGlobalExchange):
 
     def call(self, inputs: GraphGlobalExchangeInput, training: bool = False):
         per_node_graph_representations = self._compute_per_node_graph_representations(
-            inputs, training
-        )
+            inputs, training)
         cur_node_representations = self._mlp(
             tf.concat([per_node_graph_representations, inputs.node_embeddings], axis=-1),
             training=training,

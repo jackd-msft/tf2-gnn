@@ -35,10 +35,10 @@ def save_model(save_file: str, model: GraphTaskModel, dataset: GraphDataset) -> 
 
 
 def load_weights_verbosely(
-    save_file: str,
-    model: GraphTaskModel,
-    warn_about_initialisations: bool = True,
-    warn_about_ignored: bool = True,
+        save_file: str,
+        model: GraphTaskModel,
+        warn_about_initialisations: bool = True,
+        warn_about_ignored: bool = True,
 ):
     hdf5_save_file = get_model_file_path(save_file, "hdf5")
     var_name_to_variable = {}
@@ -53,8 +53,7 @@ def load_weights_verbosely(
             var_name_to_variable[var.name] = var
     if not var_names_unique:
         raise ValueError(
-            "Model variables have duplicate names, making weight restoring impossible."
-        )
+            "Model variables have duplicate names, making weight restoring impossible.")
 
     var_name_to_weights = {}
 
@@ -109,7 +108,10 @@ def load_model_for_prediction(trained_model_file: str, dataset: GraphDataset):
     # Clear the Keras session so that unique naming does not mess up weight loading.
     tf.keras.backend.clear_session()
 
-    model = model_class(params=data_to_load.get("model_params", {}), dataset=dataset,)
+    model = model_class(
+        params=data_to_load.get("model_params", {}),
+        dataset=dataset,
+    )
 
     data_description = dataset.get_batch_tf_data_description()
     model.build(data_description.batch_features_shapes)
@@ -121,19 +123,17 @@ def load_model_for_prediction(trained_model_file: str, dataset: GraphDataset):
 
 
 def get_model(
-    msg_passing_implementation: str,
-    task_name: str,
-    model_cls: Type[GraphTaskModel],
-    dataset: GraphDataset,
-    dataset_model_optimised_default_hyperparameters: Dict[str, Any],
-    loaded_model_hyperparameters: Dict[str, Any],
-    cli_model_hyperparameter_overrides: Dict[str, Any],
-    hyperdrive_hyperparameter_overrides: Dict[str, str],
+        msg_passing_implementation: str,
+        task_name: str,
+        model_cls: Type[GraphTaskModel],
+        dataset: GraphDataset,
+        dataset_model_optimised_default_hyperparameters: Dict[str, Any],
+        loaded_model_hyperparameters: Dict[str, Any],
+        cli_model_hyperparameter_overrides: Dict[str, Any],
+        hyperdrive_hyperparameter_overrides: Dict[str, str],
 ) -> GraphTaskModel:
     if not model_cls:
-        model_cls, model_default_hyperparameter_overrides = task_name_to_model_class(
-            task_name
-        )
+        model_cls, model_default_hyperparameter_overrides = task_name_to_model_class(task_name)
         model_params = model_cls.get_default_hyperparameters(msg_passing_implementation)
         print(f" Model default parameters: {model_params}")
         model_params.update(model_default_hyperparameter_overrides)
@@ -150,16 +150,12 @@ def get_model(
         model_params = loaded_model_hyperparameters
     model_params.update(cli_model_hyperparameter_overrides)
     if len(cli_model_hyperparameter_overrides):
-        print(
-            f"  Model parameters overridden from CLI: {cli_model_hyperparameter_overrides}"
-        )
+        print(f"  Model parameters overridden from CLI: {cli_model_hyperparameter_overrides}")
     if len(hyperdrive_hyperparameter_overrides) > 0:
-        override_model_params_with_hyperdrive_params(
-            model_params, hyperdrive_hyperparameter_overrides
-        )
+        override_model_params_with_hyperdrive_params(model_params,
+                                                     hyperdrive_hyperparameter_overrides)
         print(
-            f"  Model parameters overridden for Hyperdrive: {hyperdrive_hyperparameter_overrides}"
-        )
+            f"  Model parameters overridden for Hyperdrive: {hyperdrive_hyperparameter_overrides}")
     return model_cls(model_params, dataset=dataset)
 
 
@@ -167,15 +163,15 @@ def get_model(
 # In particular, need to ensure that the weights and the proposed model to be trained match up in their
 # base components (i.e. if loading GNN weights, dimensions need to match for the GNN in finetuning)
 def get_model_and_dataset(
-    task_name: Optional[str],
-    msg_passing_implementation: Optional[str],
-    data_path: RichPath,
-    trained_model_file: Optional[str],
-    cli_data_hyperparameter_overrides: Optional[str],
-    cli_model_hyperparameter_overrides: Optional[str],
-    hyperdrive_hyperparameter_overrides: Dict[str, str] = {},
-    folds_to_load: Optional[Set[DataFold]] = None,
-    load_weights_only: bool = False,
+        task_name: Optional[str],
+        msg_passing_implementation: Optional[str],
+        data_path: RichPath,
+        trained_model_file: Optional[str],
+        cli_data_hyperparameter_overrides: Optional[str],
+        cli_model_hyperparameter_overrides: Optional[str],
+        hyperdrive_hyperparameter_overrides: Dict[str, str] = {},
+        folds_to_load: Optional[Set[DataFold]] = None,
+        load_weights_only: bool = False,
 ):
     # case of a trained model file being passed, where the entire model should be loaded,
     # a new class and dataset type are not required
@@ -212,8 +208,7 @@ def get_model_and_dataset(
 
         if not trained_model_file and load_weights_only:
             raise ValueError(
-                "Cannot load only weights when model file from which to load is not specified."
-            )
+                "Cannot load only weights when model file from which to load is not specified.")
 
     dataset = get_dataset(
         task_name,
@@ -234,12 +229,9 @@ def get_model_and_dataset(
         model_class,
         dataset,
         dataset_model_optimised_default_hyperparameters=default_task_model_hypers.get(
-            "model_params", {}
-        ),
+            "model_params", {}),
         loaded_model_hyperparameters=data_to_load.get("model_params", {}),
-        cli_model_hyperparameter_overrides=json.loads(
-            cli_model_hyperparameter_overrides or "{}"
-        ),
+        cli_model_hyperparameter_overrides=json.loads(cli_model_hyperparameter_overrides or "{}"),
         hyperdrive_hyperparameter_overrides=hyperdrive_hyperparameter_overrides or {},
     )
 

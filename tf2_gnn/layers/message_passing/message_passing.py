@@ -55,12 +55,12 @@ class MessagePassing(tf.keras.layers.Layer):
 
     @abstractmethod
     def _message_function(
-        self,
-        edge_source_states: tf.Tensor,
-        edge_target_states: tf.Tensor,
-        num_incoming_to_node_per_message: tf.Tensor,
-        edge_type_idx: int,
-        training: bool,
+            self,
+            edge_source_states: tf.Tensor,
+            edge_target_states: tf.Tensor,
+            num_incoming_to_node_per_message: tf.Tensor,
+            edge_type_idx: int,
+            training: bool,
     ) -> tf.Tensor:
         """Abstract method to calculate the messages passed from a source nodes to target nodes.
 
@@ -102,27 +102,30 @@ class MessagePassing(tf.keras.layers.Layer):
         node_embeddings, adjacency_lists = inputs.node_embeddings, inputs.adjacency_lists
         num_nodes = tf.shape(node_embeddings)[0]
 
-        messages_per_type = self._calculate_messages_per_type(
-            adjacency_lists, node_embeddings, training
-        )
+        messages_per_type = self._calculate_messages_per_type(adjacency_lists, node_embeddings,
+                                                              training)
 
         edge_type_to_message_targets = [
             adjacency_list_for_edge_type[:, 1] for adjacency_list_for_edge_type in adjacency_lists
         ]
 
         new_node_states = self._compute_new_node_embeddings(
-            node_embeddings, messages_per_type, edge_type_to_message_targets, num_nodes, training,
+            node_embeddings,
+            messages_per_type,
+            edge_type_to_message_targets,
+            num_nodes,
+            training,
         )  # Shape [V, H]
 
         return new_node_states
 
     def _compute_new_node_embeddings(
-        self,
-        cur_node_embeddings: tf.Tensor,
-        messages_per_type: List[tf.Tensor],
-        edge_type_to_message_targets: List[tf.Tensor],
-        num_nodes: tf.Tensor,
-        training: bool,
+            self,
+            cur_node_embeddings: tf.Tensor,
+            messages_per_type: List[tf.Tensor],
+            edge_type_to_message_targets: List[tf.Tensor],
+            num_nodes: tf.Tensor,
+            training: bool,
     ):
         """Aggregate the messages using the aggregation function specified in the params dict.
 
@@ -150,37 +153,34 @@ class MessagePassing(tf.keras.layers.Layer):
         message_targets = tf.concat(edge_type_to_message_targets, axis=0)  # Shape [M]
         messages = tf.concat(messages_per_type, axis=0)  # Shape [M, H]
 
-        aggregated_messages = self._aggregation_fn(
-            data=messages, segment_ids=message_targets, num_segments=num_nodes
-        )
+        aggregated_messages = self._aggregation_fn(data=messages,
+                                                   segment_ids=message_targets,
+                                                   num_segments=num_nodes)
         return self._activation_fn(aggregated_messages)
 
     def _calculate_messages_per_type(
-        self,
-        adjacency_lists: Tuple[tf.Tensor, ...],
-        node_embeddings: tf.Tensor,
-        training: bool = False,
+            self,
+            adjacency_lists: Tuple[tf.Tensor, ...],
+            node_embeddings: tf.Tensor,
+            training: bool = False,
     ) -> List[tf.Tensor]:
         messages_per_type = []  # list of tensors of messages of shape [E, H]
 
         # Calculate this once.
         type_to_num_incoming_edges = calculate_type_to_num_incoming_edges(
-            node_embeddings, adjacency_lists
-        )
+            node_embeddings, adjacency_lists)
         # Collect incoming messages per edge type
         for edge_type_idx, adjacency_list_for_edge_type in enumerate(adjacency_lists):
             edge_sources = adjacency_list_for_edge_type[:, 0]
             edge_targets = adjacency_list_for_edge_type[:, 1]
-            edge_source_states = tf.nn.embedding_lookup(
-                params=node_embeddings, ids=edge_sources
-            )  # Shape [E, H]
-            edge_target_states = tf.nn.embedding_lookup(
-                params=node_embeddings, ids=edge_targets
-            )  # Shape [E, H]
+            edge_source_states = tf.nn.embedding_lookup(params=node_embeddings,
+                                                        ids=edge_sources)  # Shape [E, H]
+            edge_target_states = tf.nn.embedding_lookup(params=node_embeddings,
+                                                        ids=edge_targets)  # Shape [E, H]
 
             num_incoming_to_node_per_message = tf.nn.embedding_lookup(
-                params=type_to_num_incoming_edges[edge_type_idx, :], ids=edge_targets
-            )  # Shape [E, H]
+                params=type_to_num_incoming_edges[edge_type_idx, :],
+                ids=edge_targets)  # Shape [E, H]
 
             # Calculate the messages themselves:
             messages = self._message_function(
@@ -196,6 +196,7 @@ class MessagePassing(tf.keras.layers.Layer):
 
 
 MESSAGE_PASSING_IMPLEMENTATIONS: Dict[str, MessagePassing] = {}
+
 
 def register_message_passing_implementation(cls):
     """Decorator used to register a message passing class implementation"""

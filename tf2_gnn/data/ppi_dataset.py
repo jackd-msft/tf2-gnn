@@ -11,11 +11,11 @@ class PPIGraphSample(GraphSample):
     """Data structure holding a single PPI graph."""
 
     def __init__(
-        self,
-        adjacency_lists: List[np.ndarray],
-        type_to_node_to_num_inedges: np.ndarray,
-        node_features: np.ndarray,
-        node_labels: np.ndarray,
+            self,
+            adjacency_lists: List[np.ndarray],
+            type_to_node_to_num_inedges: np.ndarray,
+            node_features: np.ndarray,
+            node_labels: np.ndarray,
     ):
         super().__init__(adjacency_lists, type_to_node_to_num_inedges, node_features)
         self._node_labels = node_labels
@@ -27,6 +27,7 @@ class PPIGraphSample(GraphSample):
 
 
 class PPIDataset(GraphDataset[PPIGraphSample]):
+
     @classmethod
     def get_default_hyperparameters(cls) -> Dict[str, Any]:
         return {
@@ -78,9 +79,9 @@ class PPIDataset(GraphDataset[PPIGraphSample]):
         if DataFold.TEST in folds_to_load:
             self._loaded_data[DataFold.TEST] = self.__load_data(path, DataFold.TEST)
 
-    def load_data_from_list(
-        self, datapoints: List[Dict[str, Any]], target_fold: DataFold = DataFold.TEST
-    ):
+    def load_data_from_list(self,
+                            datapoints: List[Dict[str, Any]],
+                            target_fold: DataFold = DataFold.TEST):
         raise NotImplementedError()
 
     def __load_data(self, data_dir: RichPath, data_fold: DataFold) -> List[PPIGraphSample]:
@@ -129,20 +130,17 @@ class PPIDataset(GraphDataset[PPIGraphSample]):
             shifted_node_id = node_id - graph_id_to_node_offset[graph_id]
             if self._params["add_self_loop_edges"]:
                 cur_graph_data.adjacency_lists[self_loop_edge_type].append(
-                    (shifted_node_id, shifted_node_id)
-                )
+                    (shifted_node_id, shifted_node_id))
                 cur_graph_data.type_to_node_to_num_inedges[self_loop_edge_type].append(1)
 
         # Prepare reading of the edges by setting counters to 0:
         for graph_data in graph_id_to_graph_data.values():
             num_graph_nodes = len(graph_data.node_features)
-            graph_data.type_to_node_to_num_inedges[fwd_edge_type] = np.zeros(
-                [num_graph_nodes], np.int32
-            )
+            graph_data.type_to_node_to_num_inedges[fwd_edge_type] = np.zeros([num_graph_nodes],
+                                                                             np.int32)
             if not self._params["tie_fwd_bkwd_edges"]:
-                graph_data.type_to_node_to_num_inedges[bkwd_edge_type] = np.zeros(
-                    [num_graph_nodes], np.int32
-                )
+                graph_data.type_to_node_to_num_inedges[bkwd_edge_type] = np.zeros([num_graph_nodes],
+                                                                                  np.int32)
 
         for edge_info in graph_json_data["links"]:
             src_node, tgt_node = edge_info["source"], edge_info["target"]
@@ -173,8 +171,7 @@ class PPIDataset(GraphDataset[PPIGraphSample]):
                     type_to_node_to_num_inedges=np.array(graph_data.type_to_node_to_num_inedges),
                     node_features=np.array(graph_data.node_features),
                     node_labels=np.array(graph_data.node_labels),
-                )
-            )
+                ))
 
         return final_graphs
 
@@ -184,8 +181,12 @@ class PPIDataset(GraphDataset[PPIGraphSample]):
         return GraphBatchTFDataDescription(
             batch_features_types=data_description.batch_features_types,
             batch_features_shapes=data_description.batch_features_shapes,
-            batch_labels_types={**data_description.batch_labels_types, "node_labels": tf.float32},
-            batch_labels_shapes={**data_description.batch_labels_shapes, "node_labels": (None, None)},
+            batch_labels_types={
+                **data_description.batch_labels_types, "node_labels": tf.float32
+            },
+            batch_labels_shapes={
+                **data_description.batch_labels_shapes, "node_labels": (None, None)
+            },
         )
 
     def _graph_iterator(self, data_fold: DataFold) -> Iterator[PPIGraphSample]:

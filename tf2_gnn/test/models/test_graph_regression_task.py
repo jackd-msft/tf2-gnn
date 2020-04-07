@@ -25,9 +25,7 @@ original_warn, warnings.warn = warnings.warn, ignore_warn
 def jsonl_dataset():
     dataset_params = JsonLGraphPropertyDataset.get_default_hyperparameters()
     dataset = JsonLGraphPropertyDataset(dataset_params)
-    data_path = RichPath.create(
-        os.path.join(os.path.dirname(__file__), "..", "test_datasets")
-    )
+    data_path = RichPath.create(os.path.join(os.path.dirname(__file__), "..", "test_datasets"))
     dataset.load_data(data_path, folds_to_load=[DataFold.TRAIN, DataFold.VALIDATION])
 
     return dataset

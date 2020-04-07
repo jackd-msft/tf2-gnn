@@ -35,7 +35,9 @@ class JsonLGraphDataset(GraphDataset[GraphSampleType]):
         return super_hypers
 
     def __init__(
-        self, params: Dict[str, Any], metadata: Optional[Dict[str, Any]] = None,
+            self,
+            params: Dict[str, Any],
+            metadata: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(params, metadata=metadata)
         self._params = params
@@ -95,9 +97,9 @@ class JsonLGraphDataset(GraphDataset[GraphSampleType]):
             self._loaded_data[DataFold.TEST] = self.__load_data(path.join("test.jsonl.gz"))
             logger.debug("Done loading test data.")
 
-    def load_data_from_list(
-        self, datapoints: List[Dict[str, Any]], target_fold: DataFold = DataFold.TEST
-    ):
+    def load_data_from_list(self,
+                            datapoints: List[Dict[str, Any]],
+                            target_fold: DataFold = DataFold.TEST):
         if target_fold not in self._loaded_data:
             self._loaded_data[target_fold] = []
         for datapoint in datapoints:
@@ -121,9 +123,8 @@ class JsonLGraphDataset(GraphDataset[GraphSampleType]):
             node_features=node_features,
         )
 
-    def _process_raw_adjacency_lists(
-        self, raw_adjacency_lists: List[List[Tuple]], num_nodes: int
-    ) -> Tuple[List, np.ndarray]:
+    def _process_raw_adjacency_lists(self, raw_adjacency_lists: List[List[Tuple]],
+                                     num_nodes: int) -> Tuple[List, np.ndarray]:
         type_to_adj_list = [
             [] for _ in range(self._num_fwd_edge_types + int(self.params["add_self_loop_edges"]))
         ]  # type: List[List[Tuple[int, int]]]
@@ -162,9 +163,8 @@ class JsonLGraphDataset(GraphDataset[GraphSampleType]):
 
         # Convert the adjacency lists to numpy arrays.
         type_to_adj_list = [
-            np.array(adj_list, dtype=np.int32)
-            if len(adj_list) > 0
-            else np.zeros(shape=(0, 2), dtype=np.int32)
+            np.array(adj_list, dtype=np.int32) if len(adj_list) > 0 else np.zeros(shape=(0, 2),
+                                                                                  dtype=np.int32)
             for adj_list in type_to_adj_list
         ]
         return type_to_adj_list, type_to_num_incoming_edges

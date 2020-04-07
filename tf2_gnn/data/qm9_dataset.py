@@ -18,11 +18,11 @@ class QM9GraphSample(GraphSample):
     """Data structure holding a single QM9 graph."""
 
     def __init__(
-        self,
-        adjacency_lists: List[np.ndarray],
-        type_to_node_to_num_incoming_edges: np.ndarray,
-        node_features: List[np.ndarray],
-        target_value: float,
+            self,
+            adjacency_lists: List[np.ndarray],
+            type_to_node_to_num_incoming_edges: np.ndarray,
+            node_features: List[np.ndarray],
+            target_value: float,
     ):
         super().__init__(adjacency_lists, type_to_node_to_num_incoming_edges, node_features)
         self._target_value = target_value
@@ -33,11 +33,9 @@ class QM9GraphSample(GraphSample):
         return self._target_value
 
     def __str__(self):
-        return (
-            f"Adj:            {self._adjacency_lists}\n"
-            f"Node_features:  {self._node_features}\n"
-            f"Target_values:  {self._target_value}"
-        )
+        return (f"Adj:            {self._adjacency_lists}\n"
+                f"Node_features:  {self._node_features}\n"
+                f"Target_values:  {self._target_value}")
 
 
 class QM9Dataset(GraphDataset[QM9GraphSample]):
@@ -69,7 +67,6 @@ class QM9Dataset(GraphDataset[QM9GraphSample]):
         self._loaded_data: Dict[DataFold, List[QM9GraphSample]] = {}
         logger.debug("Done initialising QM9 dataset.")
 
-
     @property
     def num_edge_types(self) -> int:
         return self._num_edge_types
@@ -100,36 +97,32 @@ class QM9Dataset(GraphDataset[QM9GraphSample]):
             self._loaded_data[DataFold.TEST] = self.__load_data(path.join("test.jsonl.gz"))
             logger.debug("Done loading test data.")
 
-    def load_data_from_list(
-        self, datapoints: List[Dict[str, Any]], target_fold: DataFold = DataFold.TEST
-    ):
+    def load_data_from_list(self,
+                            datapoints: List[Dict[str, Any]],
+                            target_fold: DataFold = DataFold.TEST):
         raise NotImplementedError()
 
     def __load_data(self, data_file: RichPath) -> List[QM9GraphSample]:
-        data = list(
-            data_file.read_by_file_suffix()
-        )  # list() needed for .jsonl case, where .read*() is just a generator
+        data = list(data_file.read_by_file_suffix()
+                   )  # list() needed for .jsonl case, where .read*() is just a generator
         return self.__process_raw_graphs(data)
 
     def __process_raw_graphs(self, raw_data: Iterable[Any]) -> List[QM9GraphSample]:
         processed_graphs = []
         for d in raw_data:
             (type_to_adjacency_list, type_to_num_incoming_edges) = self.__graph_to_adjacency_lists(
-                d["graph"], num_nodes=len(d["node_features"])
-            )
+                d["graph"], num_nodes=len(d["node_features"]))
             processed_graphs.append(
                 QM9GraphSample(
                     adjacency_lists=type_to_adjacency_list,
                     type_to_node_to_num_incoming_edges=type_to_num_incoming_edges,
                     node_features=d["node_features"],
                     target_value=d["targets"][self.params["task_id"]][0],
-                )
-            )
+                ))
         return processed_graphs
 
-    def __graph_to_adjacency_lists(
-        self, graph: Iterable[Tuple[int, int, int]], num_nodes: int
-    ) -> Tuple[List[np.ndarray], np.ndarray]:
+    def __graph_to_adjacency_lists(self, graph: Iterable[Tuple[int, int, int]],
+                                   num_nodes: int) -> Tuple[List[np.ndarray], np.ndarray]:
         type_to_adj_list = [
             [] for _ in range(self._num_fwd_edge_types + int(self.params["add_self_loop_edges"]))
         ]  # type: List[List[Tuple[int, int]]]
@@ -167,9 +160,8 @@ class QM9Dataset(GraphDataset[QM9GraphSample]):
 
         # Convert the adjacency lists to numpy arrays.
         type_to_adj_list = [
-            np.array(adj_list, dtype=np.int32)
-            if len(adj_list) > 0
-            else np.zeros(shape=(0, 2), dtype=np.int32)
+            np.array(adj_list, dtype=np.int32) if len(adj_list) > 0 else np.zeros(shape=(0, 2),
+                                                                                  dtype=np.int32)
             for adj_list in type_to_adj_list
         ]
         return type_to_adj_list, type_to_num_incoming_edges
@@ -207,8 +199,12 @@ class QM9Dataset(GraphDataset[QM9GraphSample]):
         return GraphBatchTFDataDescription(
             batch_features_types=data_description.batch_features_types,
             batch_features_shapes=data_description.batch_features_shapes,
-            batch_labels_types={**data_description.batch_labels_types, "target_value": tf.float32},
-            batch_labels_shapes={**data_description.batch_labels_shapes, "target_value": (None,)},
+            batch_labels_types={
+                **data_description.batch_labels_types, "target_value": tf.float32
+            },
+            batch_labels_shapes={
+                **data_description.batch_labels_shapes, "target_value": (None,)
+            },
         )
 
 

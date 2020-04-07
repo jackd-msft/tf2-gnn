@@ -9,10 +9,14 @@ from tf2_gnn.data import GraphDataset
 
 
 class GraphTaskModel(tf.keras.Model):
+
     @classmethod
     def get_default_hyperparameters(cls, mp_style: Optional[str] = None) -> Dict[str, Any]:
         """Get the default hyperparameter dictionary for the class."""
-        params = {f"gnn_{name}": value for name, value in GNN.get_default_hyperparameters(mp_style).items()}
+        params = {
+            f"gnn_{name}": value
+            for name, value in GNN.get_default_hyperparameters(mp_style).items()
+        }
         these_hypers: Dict[str, Any] = {
             "optimizer": "Adam",  # One of "SGD", "RMSProp", "Adam"
             "learning_rate": 0.001,
@@ -39,14 +43,11 @@ class GraphTaskModel(tf.keras.Model):
         self._gnn.build(
             GNNInput(
                 node_features=self.get_initial_node_feature_shape(input_shapes),
-                adjacency_lists=tuple(
-                    input_shapes[f"adjacency_list_{edge_type_idx}"]
-                    for edge_type_idx in range(self._num_edge_types)
-                ),
+                adjacency_lists=tuple(input_shapes[f"adjacency_list_{edge_type_idx}"]
+                                      for edge_type_idx in range(self._num_edge_types)),
                 node_to_graph_map=tf.TensorShape((None,)),
                 num_graphs=tf.TensorShape(()),
-            )
-        )
+            ))
 
         super().build([])
 
@@ -58,10 +59,10 @@ class GraphTaskModel(tf.keras.Model):
 
     @abstractmethod
     def compute_task_output(
-        self,
-        batch_features: Dict[str, tf.Tensor],
-        final_node_representations: Union[tf.Tensor, Tuple[tf.Tensor, List[tf.Tensor]]],
-        training: bool,
+            self,
+            batch_features: Dict[str, tf.Tensor],
+            final_node_representations: Union[tf.Tensor, Tuple[tf.Tensor, List[tf.Tensor]]],
+            training: bool,
     ) -> Any:
         """Compute task-specific output (labels, scores, regression values, ...).
 
@@ -87,8 +88,7 @@ class GraphTaskModel(tf.keras.Model):
         # Pack input data from keys back into a tuple:
         adjacency_lists: Tuple[tf.Tensor, ...] = tuple(
             inputs[f"adjacency_list_{edge_type_idx}"]
-            for edge_type_idx in range(self._num_edge_types)
-        )
+            for edge_type_idx in range(self._num_edge_types))
 
         # Start the model computations:
         initial_node_features = self.compute_initial_node_features(inputs, training)
@@ -99,11 +99,9 @@ class GraphTaskModel(tf.keras.Model):
             num_graphs=inputs["num_graphs_in_batch"],
         )
 
-        gnn_output = self._gnn(
-            gnn_input,
-            training=training,
-            return_all_representations=self._use_intermediate_gnn_results
-        )
+        gnn_output = self._gnn(gnn_input,
+                               training=training,
+                               return_all_representations=self._use_intermediate_gnn_results)
         return gnn_output
 
     def call(self, inputs, training: bool):
@@ -112,10 +110,10 @@ class GraphTaskModel(tf.keras.Model):
 
     @abstractmethod
     def compute_task_metrics(
-        self,
-        batch_features: Dict[str, tf.Tensor],
-        task_output: Any,
-        batch_labels: Dict[str, tf.Tensor],
+            self,
+            batch_features: Dict[str, tf.Tensor],
+            task_output: Any,
+            batch_labels: Dict[str, tf.Tensor],
     ) -> Dict[str, tf.Tensor]:
         """Compute task-specific loss & metrics (accuracy, F1 score, ...)
 
@@ -150,10 +148,9 @@ class GraphTaskModel(tf.keras.Model):
         pass
 
     def _make_optimizer(
-        self,
-        learning_rate: Optional[
-            Union[float, tf.keras.optimizers.schedules.LearningRateSchedule]
-        ] = None,
+            self,
+            learning_rate: Optional[
+                Union[float, tf.keras.optimizers.schedules.LearningRateSchedule]] = None,
     ) -> tf.keras.optimizers.Optimizer:
         """
         Create fresh optimizer.
@@ -187,9 +184,8 @@ class GraphTaskModel(tf.keras.Model):
         else:
             raise Exception('Unknown optimizer "%s".' % (self._params["optimizer"]))
 
-    def _apply_gradients(
-        self, gradient_variable_pairs: Iterable[Tuple[tf.Tensor, tf.Variable]]
-    ) -> None:
+    def _apply_gradients(self,
+                         gradient_variable_pairs: Iterable[Tuple[tf.Tensor, tf.Variable]]) -> None:
         """
         Apply gradients to the models variables during training.
 
@@ -205,7 +201,10 @@ class GraphTaskModel(tf.keras.Model):
 
     # ----------------------------- Training Loop
     def run_one_epoch(
-        self, dataset: tf.data.Dataset, quiet: bool = False, training: bool = True,
+            self,
+            dataset: tf.data.Dataset,
+            quiet: bool = False,
+            training: bool = True,
     ) -> Tuple[float, float, List[Any]]:
         epoch_time_start = time.time()
         total_num_graphs = 0
@@ -220,27 +219,26 @@ class GraphTaskModel(tf.keras.Model):
             task_results.append(task_metrics)
 
             if training:
-                gradients = tape.gradient(
-                    task_metrics["loss"], self.trainable_variables
-                )
+                gradients = tape.gradient(task_metrics["loss"], self.trainable_variables)
                 self._apply_gradients(zip(gradients, self.trainable_variables))
                 self._train_step_counter += 1
 
             if not quiet:
                 epoch_graph_average_loss = (total_loss / float(total_num_graphs)).numpy()
-                batch_graph_average_loss = task_metrics["loss"] / float(batch_features["num_graphs_in_batch"])
+                batch_graph_average_loss = task_metrics["loss"] / float(
+                    batch_features["num_graphs_in_batch"])
                 steps_per_second = step / (time.time() - epoch_time_start)
                 print(
                     f"   Step: {step:4d}"
                     f"  |  Epoch graph avg. loss = {epoch_graph_average_loss:.5f}"
                     f"  |  Batch graph avg. loss = {batch_graph_average_loss:.5f}"
                     f"  |  Steps per sec = {steps_per_second:.5f}",
-                    end="\r"
-                )
+                    end="\r")
         if not quiet:
             print("\r\x1b[K", end="")
         total_time = time.time() - epoch_time_start
-        return total_loss / float(total_num_graphs), float(total_num_graphs) / total_time, task_results
+        return total_loss / float(total_num_graphs), float(
+            total_num_graphs) / total_time, task_results
 
     # ----------------------------- Prediction Loop
     def predict(self, dataset: tf.data.Dataset):

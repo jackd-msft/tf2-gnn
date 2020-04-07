@@ -5,7 +5,7 @@ import tensorflow as tf
 from dpu_utils.tf2utils import MLP
 
 from .gnn_edge_mlp import GNN_Edge_MLP
-from .message_passing import MessagePassing, MessagePassingInput,register_message_passing_implementation
+from .message_passing import MessagePassing, MessagePassingInput, register_message_passing_implementation
 from tf2_gnn.utils.constants import SMALL_NUMBER
 
 
@@ -81,12 +81,12 @@ class GNN_FiLM(GNN_Edge_MLP):
         super().build(input_shapes)
 
     def _message_function(
-        self,
-        edge_source_states: tf.Tensor,
-        edge_target_states: tf.Tensor,
-        num_incoming_to_node_per_message: tf.Tensor,
-        edge_type_idx: int,
-        training: bool,
+            self,
+            edge_source_states: tf.Tensor,
+            edge_target_states: tf.Tensor,
+            num_incoming_to_node_per_message: tf.Tensor,
+            edge_type_idx: int,
+            training: bool,
     ) -> tf.Tensor:
         messages = super()._message_function(
             edge_source_states,
@@ -96,15 +96,13 @@ class GNN_FiLM(GNN_Edge_MLP):
             training,
         )
 
-        film_weights = self._edge_type_film_layer_computations[edge_type_idx](
-            edge_target_states, training
-        )
-        per_message_film_gamma_weights = film_weights[:, : self._hidden_dim]  # Shape [E, D]
-        per_message_film_beta_weights = film_weights[:, self._hidden_dim :]  # Shape [E, D]
+        film_weights = self._edge_type_film_layer_computations[edge_type_idx](edge_target_states,
+                                                                              training)
+        per_message_film_gamma_weights = film_weights[:, :self._hidden_dim]  # Shape [E, D]
+        per_message_film_beta_weights = film_weights[:, self._hidden_dim:]  # Shape [E, D]
 
-        modulated_messages = (
-            per_message_film_gamma_weights * messages + per_message_film_beta_weights
-        )
+        modulated_messages = (per_message_film_gamma_weights * messages +
+                              per_message_film_beta_weights)
         return modulated_messages
 
 

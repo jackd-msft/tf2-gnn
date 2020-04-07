@@ -23,9 +23,8 @@ def str_to_list_of_ints(val) -> List[int]:
         return [int(v) for v in json.loads(val)]
 
 
-def override_model_params_with_hyperdrive_params(
-    model_params: Dict[str, Any], hyperdrive_params: Dict[str, str]
-):
+def override_model_params_with_hyperdrive_params(model_params: Dict[str, Any],
+                                                 hyperdrive_params: Dict[str, str]):
     """
     Overrides the model parameters, with those from hyperdrive_params. hyperdrive_params contains hyperparameter values as strings. 
 	The correct type is inferred from the model params (only the value is used from hyperdrive_params)
@@ -45,5 +44,6 @@ def override_model_params_with_hyperdrive_params(
         elif type(model_params[k]) == str:
             model_params[k] = hyperdrive_params[k]
         else:
-            raise ValueError(f"Unknown hyperparameter type {type(model_params[k])} for hyperparameter {k}.")
+            raise ValueError(
+                f"Unknown hyperparameter type {type(model_params[k])} for hyperparameter {k}.")
     return

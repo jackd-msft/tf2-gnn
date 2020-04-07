@@ -24,6 +24,7 @@ def micro_f1(logits, labels):
 
 
 class NodeMulticlassTask(GraphTaskModel):
+
     @classmethod
     def get_default_hyperparameters(cls, mp_style: Optional[str] = None) -> Dict[str, Any]:
         super_params = super().get_default_hyperparameters(mp_style)
@@ -34,7 +35,9 @@ class NodeMulticlassTask(GraphTaskModel):
     def __init__(self, params: Dict[str, Any], dataset: GraphDataset, name: str = None):
         super().__init__(params, dataset=dataset, name=name)
         if not hasattr(dataset, "num_node_target_labels"):
-            raise ValueError(f"Provided dataset of type {type(dataset)} does not provide num_node_target_labels information.")
+            raise ValueError(
+                f"Provided dataset of type {type(dataset)} does not provide num_node_target_labels information."
+            )
         self._num_labels = dataset.num_node_target_labels
 
     def build(self, input_shapes):
@@ -43,15 +46,13 @@ class NodeMulticlassTask(GraphTaskModel):
             self.node_to_labels_layer.build((None, self._params["gnn_hidden_dim"]))
         super().build(input_shapes)
 
-    def compute_task_output(
-        self, batch_features, final_node_representations: tf.Tensor, training: bool
-    ):
+    def compute_task_output(self, batch_features, final_node_representations: tf.Tensor,
+                            training: bool):
         per_node_logits = self.node_to_labels_layer(final_node_representations)
         return (per_node_logits,)
 
-    def compute_task_metrics(
-        self, batch_features, task_output, batch_labels
-    ) -> Dict[str, tf.Tensor]:
+    def compute_task_metrics(self, batch_features, task_output,
+                             batch_labels) -> Dict[str, tf.Tensor]:
         (per_node_logits,) = task_output
         (loss, f1_score) = self._fast_task_metrics(per_node_logits, batch_labels["node_labels"])
 
@@ -59,10 +60,10 @@ class NodeMulticlassTask(GraphTaskModel):
 
     @tf.function(input_signature=(tf.TensorSpec((None, None)), tf.TensorSpec((None, None))))
     def _fast_task_metrics(self, per_node_logits, node_labels):
-        per_node_losses = tf.nn.sigmoid_cross_entropy_with_logits(
-            logits=per_node_logits, labels=node_labels
-        )
-        loss = tf.reduce_mean(tf.reduce_sum(per_node_losses, axis=-1))  # Compute mean loss _per node_
+        per_node_losses = tf.nn.sigmoid_cross_entropy_with_logits(logits=per_node_logits,
+                                                                  labels=node_labels)
+        loss = tf.reduce_mean(tf.reduce_sum(per_node_losses,
+                                            axis=-1))  # Compute mean loss _per node_
         f1_score = micro_f1(per_node_logits, node_labels)
 
         return loss, f1_score

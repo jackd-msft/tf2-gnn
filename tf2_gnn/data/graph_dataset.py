@@ -24,10 +24,10 @@ class GraphSample(object):
     """Data structure holding information for a single graph."""
 
     def __init__(
-        self,
-        adjacency_lists: List[np.ndarray],
-        type_to_node_to_num_inedges: np.ndarray,
-        node_features: np.ndarray,
+            self,
+            adjacency_lists: List[np.ndarray],
+            type_to_node_to_num_inedges: np.ndarray,
+            node_features: np.ndarray,
     ):
         super().__init__()
         self._adjacency_lists = adjacency_lists
@@ -103,9 +103,9 @@ class GraphDataset(Generic[GraphSampleType]):
         pass
 
     @abstractmethod
-    def load_data_from_list(
-        self, datapoints: List[Dict[str, Any]], target_fold: DataFold = DataFold.TEST
-    ):
+    def load_data_from_list(self,
+                            datapoints: List[Dict[str, Any]],
+                            target_fold: DataFold = DataFold.TEST):
         pass
 
     @abstractmethod
@@ -115,9 +115,8 @@ class GraphDataset(Generic[GraphSampleType]):
         """
         pass
 
-    def graph_batch_iterator(
-        self, data_fold: DataFold
-    ) -> Iterator[Tuple[Dict[str, Any], Dict[str, Any]]]:
+    def graph_batch_iterator(self, data_fold: DataFold
+                            ) -> Iterator[Tuple[Dict[str, Any], Dict[str, Any]]]:
         """Get the graph batch iterator.
 
         Graph are batched into a single graph with multiple disconnected components.
@@ -168,15 +167,12 @@ class GraphDataset(Generic[GraphSampleType]):
 
         yield self._finalise_batch(raw_batch)
 
-    def _batch_would_be_too_full(
-        self, raw_batch: Dict[str, Any], graph_sample: GraphSampleType
-    ) -> bool:
+    def _batch_would_be_too_full(self, raw_batch: Dict[str, Any],
+                                 graph_sample: GraphSampleType) -> bool:
         """Return whether the current raw batch would be too full if graph_sample was added."""
         num_nodes_in_graph = len(graph_sample.node_features)
-        return (
-            raw_batch["num_nodes_in_batch"] + num_nodes_in_graph
-            > self._params["max_nodes_per_batch"]
-        )
+        return (raw_batch["num_nodes_in_batch"] + num_nodes_in_graph >
+                self._params["max_nodes_per_batch"])
 
     def _new_batch(self) -> Dict[str, Any]:
         """Return a dictionary suitable for collecting data for a fresh minibatch."""
@@ -202,13 +198,10 @@ class GraphDataset(Generic[GraphSampleType]):
                 shape=[num_nodes_in_graph],
                 fill_value=raw_batch["num_graphs_in_batch"],
                 dtype=np.int32,
-            )
-        )
+            ))
         for edge_type_idx, batch_adjacency_list in enumerate(raw_batch["adjacency_lists"]):
-            batch_adjacency_list.append(
-                graph_sample.adjacency_lists[edge_type_idx].reshape(-1, 2)
-                + raw_batch["num_nodes_in_batch"]
-            )
+            batch_adjacency_list.append(graph_sample.adjacency_lists[edge_type_idx].reshape(-1, 2) +
+                                        raw_batch["num_nodes_in_batch"])
 
     def _finalise_batch(self, raw_batch: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Turns a raw batch into a minibatch ready to be fed to the model (i.e., converts
@@ -262,9 +255,8 @@ class GraphDataset(Generic[GraphSampleType]):
             batch_labels_shapes=batch_labels_shapes,
         )
 
-    def get_tensorflow_dataset(
-        self, data_fold: DataFold, use_worker_threads: bool = True
-    ) -> tf.data.Dataset:
+    def get_tensorflow_dataset(self, data_fold: DataFold,
+                               use_worker_threads: bool = True) -> tf.data.Dataset:
         """Construct a TensorFlow dataset from the _graph_batch_iterator of this class.
 
         Returns:
@@ -276,8 +268,7 @@ class GraphDataset(Generic[GraphSampleType]):
 
         if use_worker_threads:
             graph_batch_iterator = lambda: DoubleBufferedIterator(
-                self.graph_batch_iterator(data_fold)
-            )
+                self.graph_batch_iterator(data_fold))
         else:
             graph_batch_iterator = lambda: self.graph_batch_iterator(data_fold)
 

@@ -4,7 +4,6 @@ import pytest
 
 from tf2_gnn.layers.message_passing import MessagePassingInput, RGCN
 
-
 shape_test_data = [
     (tf.TensorShape(dims=(None, 3)), tuple(tf.TensorShape(dims=(None, 2)) for _ in range(3)), 5),
     (tf.TensorShape(dims=(None, 1)), tuple(tf.TensorShape(dims=(None, 2)) for _ in range(1)), 1),
@@ -14,8 +13,7 @@ shape_test_data = [
 
 @pytest.mark.parametrize("node_embedding_shape,adjacency_list_shapes,hidden_dim", shape_test_data)
 def test_rgcn_layer_has_expected_number_of_trainable_variables_when_not_using_source_and_target(
-    node_embedding_shape, adjacency_list_shapes, hidden_dim
-):
+        node_embedding_shape, adjacency_list_shapes, hidden_dim):
     # Given:
     rgcn_params = RGCN.get_default_hyperparameters()
     rgcn_params["hidden_dim"] = hidden_dim
@@ -24,10 +22,8 @@ def test_rgcn_layer_has_expected_number_of_trainable_variables_when_not_using_so
 
     # When:
     rgcn_layer.build(
-        MessagePassingInput(
-            node_embeddings=node_embedding_shape, adjacency_lists=adjacency_list_shapes
-        )
-    )
+        MessagePassingInput(node_embeddings=node_embedding_shape,
+                            adjacency_lists=adjacency_list_shapes))
     trainable_vars = rgcn_layer.trainable_variables
     all_vars = rgcn_layer.variables
 
@@ -41,8 +37,7 @@ def test_rgcn_layer_has_expected_number_of_trainable_variables_when_not_using_so
 
 @pytest.mark.parametrize("node_embedding_shape,adjacency_list_shapes,hidden_dim", shape_test_data)
 def test_rgcn_layer_has_expected_number_of_trainable_variables_when_using_source_and_target(
-    node_embedding_shape, adjacency_list_shapes, hidden_dim
-):
+        node_embedding_shape, adjacency_list_shapes, hidden_dim):
     # Given:
     rgcn_params = RGCN.get_default_hyperparameters()
     rgcn_params["hidden_dim"] = hidden_dim
@@ -51,10 +46,8 @@ def test_rgcn_layer_has_expected_number_of_trainable_variables_when_using_source
 
     # When:
     rgcn_layer.build(
-        MessagePassingInput(
-            node_embeddings=node_embedding_shape, adjacency_lists=adjacency_list_shapes
-        )
-    )
+        MessagePassingInput(node_embeddings=node_embedding_shape,
+                            adjacency_lists=adjacency_list_shapes))
     trainable_vars = rgcn_layer.trainable_variables
     all_vars = rgcn_layer.variables
 

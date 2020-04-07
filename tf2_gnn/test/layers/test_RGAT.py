@@ -4,7 +4,6 @@ import pytest
 
 from tf2_gnn.layers.message_passing import MessagePassingInput, RGAT
 
-
 # fmt: off
 shape_test_data = [
     (
@@ -29,12 +28,11 @@ shape_test_data = [
 # fmt: on
 
 
-@pytest.mark.parametrize(
-    "node_embedding_shape,adjacency_list_shapes,hidden_dim,num_heads", shape_test_data
-)
-def test_rgat_layer_has_expected_number_of_trainable_variables(
-    node_embedding_shape, adjacency_list_shapes, hidden_dim, num_heads
-):
+@pytest.mark.parametrize("node_embedding_shape,adjacency_list_shapes,hidden_dim,num_heads",
+                         shape_test_data)
+def test_rgat_layer_has_expected_number_of_trainable_variables(node_embedding_shape,
+                                                               adjacency_list_shapes, hidden_dim,
+                                                               num_heads):
     # Given:
     rgat_params = RGAT.get_default_hyperparameters()
     rgat_params["hidden_dim"] = hidden_dim
@@ -43,10 +41,8 @@ def test_rgat_layer_has_expected_number_of_trainable_variables(
 
     # When:
     rgat_layer.build(
-        MessagePassingInput(
-            node_embeddings=node_embedding_shape, adjacency_lists=adjacency_list_shapes
-        )
-    )
+        MessagePassingInput(node_embeddings=node_embedding_shape,
+                            adjacency_lists=adjacency_list_shapes))
     trainable_vars = rgat_layer.trainable_variables
     all_vars = rgat_layer.variables
 

@@ -73,26 +73,23 @@ class GNN_Edge_MLP(MessagePassing):
 
         for i in range(num_edge_types):
             with tf.name_scope(f"edge_type_{i}"):
-                mlp = MLP(
-                    out_size=self._hidden_dim, hidden_layers=self._num_edge_MLP_hidden_layers
-                )
+                mlp = MLP(out_size=self._hidden_dim, hidden_layers=self._num_edge_MLP_hidden_layers)
                 mlp.build(tf.TensorShape((None, edge_layer_input_size)))
             self._edge_type_mlps.append(mlp)
 
         super().build(input_shapes)
 
     def _message_function(
-        self,
-        edge_source_states: tf.Tensor,
-        edge_target_states: tf.Tensor,
-        num_incoming_to_node_per_message: tf.Tensor,
-        edge_type_idx: int,
-        training: bool,
+            self,
+            edge_source_states: tf.Tensor,
+            edge_target_states: tf.Tensor,
+            num_incoming_to_node_per_message: tf.Tensor,
+            edge_type_idx: int,
+            training: bool,
     ) -> tf.Tensor:
         if self._use_target_state_as_input:
-            edge_mlp_inputs = tf.concat(
-                [edge_source_states, edge_target_states], axis=1
-            )  # Shape [E, 2*D]
+            edge_mlp_inputs = tf.concat([edge_source_states, edge_target_states],
+                                        axis=1)  # Shape [E, 2*D]
         else:
             edge_mlp_inputs = edge_source_states
 
@@ -101,9 +98,8 @@ class GNN_Edge_MLP(MessagePassing):
 
         if self._normalize_by_num_incoming:
             messages = (
-                tf.expand_dims(1.0 / (num_incoming_to_node_per_message + SMALL_NUMBER), axis=-1)
-                * messages
-            )
+                tf.expand_dims(1.0 / (num_incoming_to_node_per_message + SMALL_NUMBER), axis=-1) *
+                messages)
         return messages
 
 

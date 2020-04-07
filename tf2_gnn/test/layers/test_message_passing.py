@@ -9,6 +9,7 @@ from tf2_gnn.layers.message_passing import MessagePassingInput, MessagePassing
 
 
 class PassSourceStates(MessagePassing):
+
     def __init__(self):
         params = super().get_default_hyperparameters()
         # Just in case defaults ever change
@@ -16,14 +17,9 @@ class PassSourceStates(MessagePassing):
         params["aggregation_function"] = "sum"
         super().__init__(params)
 
-    def _message_function(
-        self,
-        edge_source_states: tf.Tensor,
-        edge_target_states: tf.Tensor,
-        num_incoming_to_node_per_message: tf.Tensor,
-        edge_type_idx: int,
-        training: bool
-    ) -> tf.Tensor:
+    def _message_function(self, edge_source_states: tf.Tensor, edge_target_states: tf.Tensor,
+                          num_incoming_to_node_per_message: tf.Tensor, edge_type_idx: int,
+                          training: bool) -> tf.Tensor:
         return edge_source_states
 
 

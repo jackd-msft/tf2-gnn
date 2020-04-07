@@ -10,10 +10,10 @@ from tf2_gnn.cli_utils.training_utils import get_model_and_dataset
 
 
 def test(
-    model: GraphTaskModel,
-    dataset: GraphDataset,
-    log_fun: Callable[[str], None],
-    quiet: bool = False,
+        model: GraphTaskModel,
+        dataset: GraphDataset,
+        log_fun: Callable[[str], None],
+        quiet: bool = False,
 ):
     log_fun("== Running on test dataset")
     test_data = dataset.get_tensorflow_dataset(DataFold.TEST)
@@ -66,7 +66,10 @@ def run():
         help="Azure authentication information file (JSON).",
     )
     parser.add_argument(
-        "--quiet", dest="quiet", action="store_true", help="Generate less output during testing.",
+        "--quiet",
+        dest="quiet",
+        action="store_true",
+        help="Generate less output during testing.",
     )
     parser.add_argument("--debug", dest="debug", action="store_true", help="Enable debug routines")
     args = parser.parse_args()

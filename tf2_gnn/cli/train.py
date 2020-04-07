@@ -25,9 +25,8 @@ def run():
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"
     tf.get_logger().setLevel("ERROR")
 
-    run_and_debug(
-        lambda: run_train_from_args(args, hyperdrive_hyperparameter_overrides), args.debug
-    )
+    run_and_debug(lambda: run_train_from_args(args, hyperdrive_hyperparameter_overrides),
+                  args.debug)
 
 
 if __name__ == "__main__":
