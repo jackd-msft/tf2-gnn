@@ -58,21 +58,20 @@ class RGIN(GNN_Edge_MLP):
     tf.Tensor(..., shape=(5, 12), dtype=float32)
     """
 
-    @classmethod
-    def get_default_hyperparameters(cls):
-        these_hypers = {
-            "use_target_state_as_input": False,
-            "num_edge_MLP_hidden_layers": 1,
-            "num_aggr_MLP_hidden_layers": None,
-        }
-        gnn_edge_mlp_hypers = super().get_default_hyperparameters()
-        gnn_edge_mlp_hypers.update(these_hypers)
-        return gnn_edge_mlp_hypers
+    def __init__(self,
+                 use_target_state_as_input: bool = False,
+                 num_edge_MLP_hidden_layers: int = 1,
+                 num_aggr_MLP_hidden_layers: Optional[int] = None,
+                 **kwargs):
+        super().__init__(use_target_state_as_input=use_target_state_as_input,
+                         num_edge_MLP_hidden_layers=num_edge_MLP_hidden_layers,
+                         **kwargs)
+        self._num_aggr_MLP_hidden_layers: Optional[int] = num_aggr_MLP_hidden_layers
 
-    def __init__(self, params: Dict[str, Any], **kwargs):
-        super().__init__(params, **kwargs)
-        self._num_aggr_MLP_hidden_layers: Optional[int] = params["num_aggr_MLP_hidden_layers"]
-        self._aggregation_mlp: Optional[MLP] = None
+    def get_config(self) -> Dict[str, Any]:
+        config = super().get_config()
+        config["num_aggr_MLP_hidden_layers"] = self._num_aggr_MLP_hidden_layers
+        return config
 
     def build(self, input_shapes: MessagePassingInput):
         if self._num_aggr_MLP_hidden_layers is not None:

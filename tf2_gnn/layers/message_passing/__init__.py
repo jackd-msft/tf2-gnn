@@ -14,6 +14,10 @@ def get_message_passing_class(message_calculation_class_name: str):
     return calculation_class
 
 
+def serialize_message_passing_class(message_calculation_class: type):
+    return message_calculation_class.__name__
+
+
 def get_known_message_passing_classes():
     for message_passing_implementation in MESSAGE_PASSING_IMPLEMENTATIONS.values():
         yield message_passing_implementation.__name__

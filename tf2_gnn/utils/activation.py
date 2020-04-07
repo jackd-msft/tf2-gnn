@@ -2,8 +2,10 @@
 import math as m
 
 import tensorflow as tf
+from .register import register_custom_object
 
 
+@register_custom_object
 def gelu(input_tensor: tf.Tensor):
     """An approximation to the GELU activation function as used in the paper
     https://arxiv.org/pdf/1810.04805.pdf

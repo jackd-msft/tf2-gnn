@@ -1,11 +1,10 @@
 """Gated graph neural network layer."""
-from typing import Dict, List, Any, Optional
+from typing import List, Optional
 
 import tensorflow as tf
 
-from .message_passing import MessagePassing, MessagePassingInput, register_message_passing_implementation
+from .message_passing import MessagePassingInput, register_message_passing_implementation
 from .gnn_edge_mlp import GNN_Edge_MLP
-from tf2_gnn.utils.constants import SMALL_NUMBER
 
 
 @register_message_passing_implementation
@@ -36,28 +35,21 @@ class GGNN(GNN_Edge_MLP):
     ...    tf.constant([[3, 1]], dtype=tf.int32),
     ... )
     ...
-    >>> params = GGNN.get_default_hyperparameters()
-    >>> params["hidden_dim"] = 12
-    >>> layer = GGNN(params)
+    >>> layer = GGNN(hidden_dim=12)
     >>> output = layer(MessagePassingInput(node_embeddings, adjacency_lists))
     >>> print(output)
     tf.Tensor(..., shape=(5, 12), dtype=float32)
     """
 
-    @classmethod
-    def get_default_hyperparameters(cls):
-        these_hypers = {
-            "use_target_state_as_input": False,
-            "normalize_by_num_incoming": True,
-            "num_edge_MLP_hidden_layers": 0,
-        }
-        mp_hypers = super().get_default_hyperparameters()
-        mp_hypers.update(these_hypers)
-        return mp_hypers
-
-    def __init__(self, params: Dict[str, Any], **kwargs):
-        super().__init__(params, **kwargs)
-        self._recurrent_unit: tf.keras.layers.GRUCell = None
+    def __init__(self,
+                 num_edge_MLP_hidden_layers: int = 0,
+                 use_target_state_as_input: bool = False,
+                 normalize_by_num_incoming: bool = True,
+                 **kwargs):
+        super().__init__(num_edge_MLP_hidden_layers=num_edge_MLP_hidden_layers,
+                         use_target_state_as_input=use_target_state_as_input,
+                         normalize_by_num_incoming=normalize_by_num_incoming,
+                         **kwargs)
 
     def build(self, input_shapes: MessagePassingInput):
         node_embedding_shapes = input_shapes.node_embeddings
@@ -65,14 +57,10 @@ class GGNN(GNN_Edge_MLP):
         self._recurrent_unit.build(tf.TensorShape((None, node_embedding_shapes[-1])))
         super().build(input_shapes)
 
-    def _compute_new_node_embeddings(
-            self,
-            cur_node_embeddings: tf.Tensor,
-            messages_per_type: List[tf.Tensor],
-            edge_type_to_message_targets: List[tf.Tensor],
-            num_nodes: tf.Tensor,
-            training: Optional[bool],
-    ):
+    def _compute_new_node_embeddings(self, cur_node_embeddings: tf.Tensor,
+                                     messages_per_type: List[tf.Tensor],
+                                     edge_type_to_message_targets: List[tf.Tensor],
+                                     num_nodes: tf.Tensor, training: Optional[bool]):
         # Let M be the number of messages (sum of all E):
         message_targets = tf.concat(edge_type_to_message_targets, axis=0)  # Shape [M]
         messages = tf.concat(messages_per_type, axis=0)  # Shape [M, H]

@@ -35,31 +35,31 @@ class GNN_Edge_MLP(MessagePassing):
     ...    tf.constant([[3, 1]], dtype=tf.int32),
     ... )
     ...
-    >>> params = GNN_Edge_MLP.get_default_hyperparameters()
-    >>> params["hidden_dim"] = 12
-    >>> layer = GNN_Edge_MLP(params)
+    >>> layer = GNN_Edge_MLP(hidden_dim=12)
     >>> output = layer(MessagePassingInput(node_embeddings, adjacency_lists))
     >>> print(output)
     tf.Tensor(..., shape=(5, 12), dtype=float32)
     """
 
-    @classmethod
-    def get_default_hyperparameters(cls):
-        these_hypers = {
-            "use_target_state_as_input": True,
-            "normalize_by_num_incoming": False,
-            "num_edge_MLP_hidden_layers": 1,
-        }
-        mp_hypers = super().get_default_hyperparameters()
-        mp_hypers.update(these_hypers)
-        return mp_hypers
+    def __init__(self,
+                 num_edge_MLP_hidden_layers: int = 1,
+                 use_target_state_as_input: bool = True,
+                 normalize_by_num_incoming: bool = False,
+                 **kwargs):
+        super().__init__(**kwargs)
+        self._num_edge_MLP_hidden_layers = num_edge_MLP_hidden_layers
+        self._use_target_state_as_input = use_target_state_as_input
+        self._normalize_by_num_incoming = normalize_by_num_incoming
+        self._recurrent_unit: tf.keras.layers.GRUCell = None
 
-    def __init__(self, params: Dict[str, Any], **kwargs):
-        super().__init__(params, **kwargs)
-        self._use_target_state_as_input = params["use_target_state_as_input"]
-        self._normalize_by_num_incoming = params["normalize_by_num_incoming"]
-        self._num_edge_MLP_hidden_layers = params["num_edge_MLP_hidden_layers"]
-        self._edge_type_mlps: List[tf.keras.layers.Layer] = []
+    def get_config(self) -> Dict[str, Any]:
+        config = super().get_config()
+        config.update({
+            "use_target_state_as_input": self._use_target_state_as_input,
+            "normalize_by_num_incoming": self._normalize_by_num_incoming,
+            "num_edge_MLP_hidden_layers": self._num_edge_MLP_hidden_layers,
+        })
+        return config
 
     def build(self, input_shapes: MessagePassingInput):
         node_embedding_shapes = input_shapes.node_embeddings

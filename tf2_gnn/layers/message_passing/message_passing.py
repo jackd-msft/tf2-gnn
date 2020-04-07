@@ -1,10 +1,11 @@
 """Message passing layer."""
 from abc import abstractmethod
-from typing import Dict, List, NamedTuple, Tuple, Any, Optional
+from typing import Dict, List, NamedTuple, Tuple, Optional
 
 import tensorflow as tf
 
-from tf2_gnn.utils.param_helpers import get_activation_function, get_aggregation_function
+from tf2_gnn.utils.param_helpers import get_aggregation_function
+from tf2_gnn.utils.register import register
 
 
 class MessagePassingInput(NamedTuple):
@@ -35,23 +36,27 @@ class MessagePassing(tf.keras.layers.Layer):
         * H: output node representation dimension (set as hidden_dim)
     """
 
-    @classmethod
-    def get_default_hyperparameters(cls):
-        return {
-            "aggregation_function": "sum",  # One of sum, mean, max, sqrt_n
-            "message_activation_function": "relu",  # One of relu, leaky_relu, elu, gelu, tanh
-            "hidden_dim": 7,
-        }
-
-    def __init__(self, params: Dict[str, Any], **kwargs):
+    def __init__(
+            self,
+            aggregation_function: str = "sum",  # One of relu, leaky_relu, elu, gelu, tanh
+            message_activation="relu",
+            hidden_dim: int = 7,
+            **kwargs):
         super().__init__(**kwargs)
-        self._hidden_dim = int(params["hidden_dim"])
+        self._hidden_dim = hidden_dim
 
-        aggregation_fn_name = params["aggregation_function"]
-        self._aggregation_fn = get_aggregation_function(aggregation_fn_name)
+        self._aggregation_fn_name = aggregation_function
+        self._aggregation_fn = get_aggregation_function(aggregation_function)
+        self._message_activation = tf.keras.activations.get(message_activation)
 
-        activation_fn_name = params["message_activation_function"]
-        self._activation_fn = get_activation_function(activation_fn_name)
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "aggregation_function": self._aggregation_fn_name,
+            "message_activation": tf.keras.utils.serialize_keras_object(self._message_activation),
+            "hidden_dim": self._hidden_dim,
+        })
+        return config
 
     @abstractmethod
     def _message_function(
@@ -156,7 +161,7 @@ class MessagePassing(tf.keras.layers.Layer):
         aggregated_messages = self._aggregation_fn(data=messages,
                                                    segment_ids=message_targets,
                                                    num_segments=num_nodes)
-        return self._activation_fn(aggregated_messages)
+        return self._message_activation(aggregated_messages)
 
     def _calculate_messages_per_type(
             self,
@@ -200,6 +205,7 @@ MESSAGE_PASSING_IMPLEMENTATIONS: Dict[str, MessagePassing] = {}
 
 def register_message_passing_implementation(cls):
     """Decorator used to register a message passing class implementation"""
+    register(cls)
     MESSAGE_PASSING_IMPLEMENTATIONS[cls.__name__.lower()] = cls
     return cls
 

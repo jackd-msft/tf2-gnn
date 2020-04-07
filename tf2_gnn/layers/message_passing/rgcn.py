@@ -39,27 +39,23 @@ class RGCN(GNN_Edge_MLP):
     ...    tf.constant([[3, 1]], dtype=tf.int32),
     ... )
     ...
-    >>> params = RGCN.get_default_hyperparameters()
-    >>> params["hidden_dim"] = 12
-    >>> layer = RGCN(params)
+    >>> layer = RGCN(hidden_dim=12)
     >>> output = layer(MessagePassingInput(node_embeddings, adjacency_lists))
     >>> print(output)
     tf.Tensor(..., shape=(5, 12), dtype=float32)
     """
 
-    @classmethod
-    def get_default_hyperparameters(cls):
-        these_hypers = {
-            "use_target_state_as_input": False,
-            "normalize_by_num_incoming": True,
-            "num_edge_MLP_hidden_layers": 0,
-        }
-        mp_hypers = super().get_default_hyperparameters()
-        mp_hypers.update(these_hypers)
-        return mp_hypers
-
-    def __init__(self, params: Dict[str, Any], **kwargs):
-        super().__init__(params, **kwargs)
+    def __init__(self,
+                 use_target_state_as_input: bool = False,
+                 normalize_by_num_incoming: bool = True,
+                 num_edge_MLP_hidden_layers: int = 0,
+                 **kwargs):
+        super().__init__(
+            use_target_state_as_input=use_target_state_as_input,
+            normalize_by_num_incoming=normalize_by_num_incoming,
+            num_edge_MLP_hidden_layers=num_edge_MLP_hidden_layers,
+            **kwargs,
+        )
 
 
 if __name__ == "__main__":

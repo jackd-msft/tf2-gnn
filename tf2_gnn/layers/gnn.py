@@ -1,13 +1,13 @@
 """GNN Encoder class."""
-from typing import Any, Dict, NamedTuple, List, Tuple, Optional
+from typing import Any, Dict, NamedTuple, Tuple, List, Optional
 
 import tensorflow as tf
 
-from tf2_gnn.utils.param_helpers import get_activation_function
 from .message_passing import (
     MessagePassing,
     MessagePassingInput,
     get_message_passing_class,
+    serialize_message_passing_class,
 )
 from .graph_global_exchange import (
     GraphGlobalExchangeInput,
@@ -16,6 +16,11 @@ from .graph_global_exchange import (
     GraphGlobalGRUExchange,
     GraphGlobalMLPExchange,
 )
+
+from ..utils.register import register_custom_object
+
+activations = tf.keras.activations
+serialize_keras_object = tf.keras.utils.serialize_keras_object
 
 
 class GNNInput(NamedTuple):
@@ -27,6 +32,7 @@ class GNNInput(NamedTuple):
     num_graphs: tf.Tensor
 
 
+@register_custom_object
 class GNN(tf.keras.layers.Layer):
     """Encode graph states using a combination of graph message passing layers and dense layers
 
@@ -42,64 +48,94 @@ class GNN(tf.keras.layers.Layer):
     ...     num_graphs = 1,
     ...     )
     ...
-    >>> params = GNN.get_default_hyperparameters()
-    >>> params["hidden_dim"] = 12
-    >>> layer = GNN(params)
+    >>> layer = GNN(hidden_dim=12)
     >>> output = layer(layer_input)
     >>> print(output)
     tf.Tensor(..., shape=(5, 12), dtype=float32)
     """
 
-    @classmethod
-    def get_default_hyperparameters(cls, mp_style: Optional[str] = None) -> Dict[str, Any]:
+    def get_config(self) -> Dict[str, Any]:
         """Get the default hyperparameter dictionary for the  class."""
-        these_hypers = {
-            "message_calculation_class": "rgcn",
-            "initial_node_representation_activation": "tanh",
-            "dense_intermediate_layer_activation": "tanh",
-            "num_layers": 4,
-            "dense_every_num_layers": 2,
-            "residual_every_num_layers": 2,
-            "use_inter_layer_layernorm": False,
-            "hidden_dim": 16,
-            "layer_input_dropout_rate": 0.0,
-            "global_exchange_mode": "gru",  # One of "mean", "mlp", "gru"
-            "global_exchange_every_num_layers": 2,
-            "global_exchange_weighting_fun": "softmax",  # One of "softmax", "sigmoid"
-            "global_exchange_num_heads": 4,
-            "global_exchange_dropout_rate": 0.2,
-        }  # type: Dict[str, Any]
-        if mp_style is not None:
-            these_hypers["message_calculation_class"] = mp_style
-        message_passing_class = get_message_passing_class(these_hypers["message_calculation_class"])
-        message_passing_hypers = message_passing_class.get_default_hyperparameters()
-        message_passing_hypers.update(these_hypers)
-        return message_passing_hypers
+        config = super().get_config()
+        config.update({
+            "message_calculation_class":
+                serialize_message_passing_class(self._message_calculation_class),
+            "initial_node_representation_activation":
+                serialize_keras_object(self._initial_node_representation_activation),
+            "dense_intermediate_layer_activation":
+                serialize_keras_object(self._dense_intermediate_layer_activation),
+            "num_layers":
+                self._num_layers,
+            "dense_every_num_layers":
+                self._dense_every_num_layers,
+            "residual_every_num_layers":
+                self._residual_every_num_layers,
+            "use_inter_layer_layernorm":
+                self._use_inter_layer_layernorm,
+            "hidden_dim":
+                self._hidden_dim,
+            "layer_input_dropout_rate":
+                self._layer_input_dropout_rate,
+            "global_exchange_mode":
+                self._global_exchange_mode,
+            "global_exchange_every_num_layers":
+                self._global_exchange_every_num_layers,
+            "global_exchange_weighting_fun":
+                serialize_keras_object(self._global_exchange_weighting_fun),
+            "global_exchange_num_heads":
+                self._global_exchange_num_heads,
+            "global_exchange_dropout_rate":
+                self._global_exchange_dropout_rate,
+        })
+        config.update(self._message_passing_kwargs)
+        return config
+        # if mp_style is not None:
+        #     these_hypers["message_calculation_class"] = mp_style
+        # message_passing_class = get_message_passing_class(these_hypers["message_calculation_class"])
+        # message_passing_hypers = message_passing_class.get_default_hyperparameters()
+        # message_passing_hypers.update(these_hypers)
+        # return message_passing_hypers
 
-    def __init__(self, params: Dict[str, Any]):
+    def __init__(
+            self,
+            message_calculation_class="rgcn",
+            initial_node_representation_activation="tanh",
+            dense_intermediate_layer_activation="tanh",
+            num_layers: int = 4,
+            dense_every_num_layers: int = 2,
+            residual_every_num_layers: int = 2,
+            use_inter_layer_layernorm: bool = False,
+            hidden_dim: int = 16,
+            layer_input_dropout_rate: float = 0.0,
+            global_exchange_mode: str = "gru",  # One of "mean", "mlp", "gru"
+            global_exchange_every_num_layers: int = 2,
+            global_exchange_weighting_fun="softmax",  # One of "softmax", "sigmoid"
+            global_exchange_num_heads: int = 4,
+            global_exchange_dropout_rate: float = 0.2,
+            **kwargs):
         """Initialise the layer."""
-        super().__init__()
-        self._params = params
-        self._hidden_dim = params["hidden_dim"]
-        self._num_layers = params["num_layers"]
-        self._dense_every_num_layers = params["dense_every_num_layers"]
-        self._residual_every_num_layers = params["residual_every_num_layers"]
-        self._use_inter_layer_layernorm = params["use_inter_layer_layernorm"]
-        self._initial_node_representation_activation_fn = get_activation_function(
-            params["initial_node_representation_activation"])
-        self._dense_intermediate_layer_activation_fn = get_activation_function(
-            params["dense_intermediate_layer_activation"])
-        self._message_passing_class = get_message_passing_class(params["message_calculation_class"])
+        super().__init__(name=kwargs.pop("name", None))
+        self._hidden_dim = hidden_dim
+        self._layer_input_dropout_rate = layer_input_dropout_rate
+        self._num_layers = num_layers
+        self._dense_every_num_layers = dense_every_num_layers
+        self._residual_every_num_layers = residual_every_num_layers
+        self._use_inter_layer_layernorm = use_inter_layer_layernorm
+        self._initial_node_representation_activation = activations.get(
+            initial_node_representation_activation)
+        self._dense_intermediate_layer_activation = activations.get(
+            dense_intermediate_layer_activation)
+        self._message_passing_class = get_message_passing_class(message_calculation_class)
+        self._message_passing_kwargs = kwargs
 
-        if not params["global_exchange_mode"].lower() in {"mean", "mlp", "gru"}:
-            raise ValueError(
-                f"Unknown global_exchange_mode mode {params['global_exchange_mode']} - has to be one of 'mean', 'mlp', 'gru'!"
-            )
-        self._global_exchange_mode = params["global_exchange_mode"]
-        self._global_exchange_every_num_layers = params["global_exchange_every_num_layers"]
-        self._global_exchange_weighting_fun = params["global_exchange_weighting_fun"]
-        self._global_exchange_num_heads = params["global_exchange_num_heads"]
-        self._global_exchange_dropout_rate = params["global_exchange_dropout_rate"]
+        if not global_exchange_mode.lower() in {"mean", "mlp", "gru"}:
+            raise ValueError(f"Unknown global_exchange_mode mode {global_exchange_mode} - "
+                             "has to be one of 'mean', 'mlp', 'gru'!")
+        self._global_exchange_mode = global_exchange_mode
+        self._global_exchange_every_num_layers = global_exchange_every_num_layers
+        self._global_exchange_weighting_fun = global_exchange_weighting_fun
+        self._global_exchange_num_heads = global_exchange_num_heads
+        self._global_exchange_dropout_rate = global_exchange_dropout_rate
 
         # Layer member variables. To be filled in in the `build` method.
         self._initial_projection_layer: tf.keras.layers.Layer = None
@@ -107,6 +143,9 @@ class GNN(tf.keras.layers.Layer):
         self._inter_layer_layernorms: List[tf.keras.layers.Layer] = []
         self._dense_layers: Dict[str, tf.keras.layers.Layer] = {}
         self._global_exchange_layers: Dict[str, GraphGlobalExchange] = {}
+
+        self._global_exchange_dropout = tf.keras.layers.Dropout(global_exchange_dropout_rate)
+        self._layer_input_dropout = tf.keras.layers.Dropout(layer_input_dropout_rate)
 
     def build(self, tensor_shapes: GNNInput):
         """Build the various layers in the model.
@@ -130,7 +169,7 @@ class GNN(tf.keras.layers.Layer):
                 self._initial_projection_layer = tf.keras.layers.Dense(
                     units=self._hidden_dim,
                     use_bias=False,
-                    activation=self._initial_node_representation_activation_fn,
+                    activation=self._initial_node_representation_activation,
                 )
                 self._initial_projection_layer.build(variable_node_features_shape)
 
@@ -138,7 +177,8 @@ class GNN(tf.keras.layers.Layer):
             for layer_idx in range(self._num_layers):
                 with tf.name_scope(f"Layer_{layer_idx}"):
                     with tf.name_scope("MessagePassing"):
-                        self._mp_layers.append(self._message_passing_class(self._params))
+                        self._mp_layers.append(
+                            self._message_passing_class(**self._message_passing_kwargs))
                         self._mp_layers[-1].build(
                             MessagePassingInput(embedded_shape, adjacency_list_shapes))
 
@@ -155,7 +195,7 @@ class GNN(tf.keras.layers.Layer):
                             self._dense_layers[str(layer_idx)] = tf.keras.layers.Dense(
                                 units=self._hidden_dim,
                                 use_bias=False,
-                                activation=self._dense_intermediate_layer_activation_fn,
+                                activation=self._dense_intermediate_layer_activation,
                             )
                             self._dense_layers[str(layer_idx)].build(embedded_shape)
 
@@ -180,7 +220,8 @@ class GNN(tf.keras.layers.Layer):
                                     num_graphs=tf.TensorShape(()),
                                 ))
                             self._global_exchange_layers[str(layer_idx)] = exchange_layer
-        self._dropout = tf.keras.layers.Dropout(self._params["layer_input_dropout_rate"])
+        self._layer_input_dropout.build()
+        self._global_exchange_dropout.build()
         super().build(tensor_shapes)
 
         # The following is needed to work around a limitation in the @tf.function annotation.
@@ -264,7 +305,8 @@ class GNN(tf.keras.layers.Layer):
         last_node_representations = cur_node_representations
         all_node_representations = [cur_node_representations]
         for layer_idx, mp_layer in enumerate(self._mp_layers):
-            cur_node_representations = self._dropout(cur_node_representations, training=training)
+            cur_node_representations = self._layer_input_dropout(cur_node_representations,
+                                                                 training=training)
 
             # Pass residuals through:
             if layer_idx % self._residual_every_num_layers == 0:

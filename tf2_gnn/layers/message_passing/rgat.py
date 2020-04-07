@@ -42,28 +42,22 @@ class RGAT(MessagePassing):
     ...    tf.constant([[3, 1]], dtype=tf.int32),
     ... )
     ...
-    >>> params = RGAT.get_default_hyperparameters()
-    >>> params["hidden_dim"] = 12
-    >>> layer = RGAT(params)
+    >>> layer = RGAT(hidden_dim=12)
     >>> output = layer(MessagePassingInput(node_embeddings, adjacency_lists))
     >>> print(output)
     tf.Tensor(..., shape=(5, 12), dtype=float32)
     """
 
-    @classmethod
-    def get_default_hyperparameters(cls):
-        these_hypers = {
-            "num_heads": 3,
-        }
-        mp_hypers = super().get_default_hyperparameters()
-        mp_hypers.update(these_hypers)
-        return mp_hypers
-
-    def __init__(self, params: Dict[str, Any], **kwargs):
-        super().__init__(params, **kwargs)
-        self._num_heads: int = params["num_heads"]
+    def __init__(self, num_heads: int = 3, **kwargs):
+        super().__init__(**kwargs)
+        self._num_heads = num_heads
         self._edge_type_to_message_computation_layer: List[tf.keras.layers.Layer] = []
         self._edge_type_to_attention_parameters: List[tf.Variable] = []
+
+    def get_config(self):
+        config = super().get_config()
+        config['num_heads'] = self._num_heads
+        return config
 
     def build(self, input_shapes: MessagePassingInput):
         node_embedding_shapes = input_shapes.node_embeddings
