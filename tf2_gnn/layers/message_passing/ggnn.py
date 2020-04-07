@@ -1,5 +1,5 @@
 """Gated graph neural network layer."""
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 import tensorflow as tf
 
@@ -71,7 +71,7 @@ class GGNN(GNN_Edge_MLP):
             messages_per_type: List[tf.Tensor],
             edge_type_to_message_targets: List[tf.Tensor],
             num_nodes: tf.Tensor,
-            training: bool,
+            training: Optional[bool],
     ):
         # Let M be the number of messages (sum of all E):
         message_targets = tf.concat(edge_type_to_message_targets, axis=0)  # Shape [M]

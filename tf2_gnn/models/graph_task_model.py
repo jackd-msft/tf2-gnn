@@ -54,7 +54,7 @@ class GraphTaskModel(tf.keras.Model):
     def get_initial_node_feature_shape(self, input_shapes) -> tf.TensorShape:
         return input_shapes["node_features"]
 
-    def compute_initial_node_features(self, inputs, training: bool) -> tf.Tensor:
+    def compute_initial_node_features(self, inputs, training: Optional[bool]) -> tf.Tensor:
         return inputs["node_features"]
 
     @abstractmethod
@@ -62,7 +62,7 @@ class GraphTaskModel(tf.keras.Model):
             self,
             batch_features: Dict[str, tf.Tensor],
             final_node_representations: Union[tf.Tensor, Tuple[tf.Tensor, List[tf.Tensor]]],
-            training: bool,
+            training: Optional[bool],
     ) -> Any:
         """Compute task-specific output (labels, scores, regression values, ...).
 
@@ -84,7 +84,7 @@ class GraphTaskModel(tf.keras.Model):
         """
         pass
 
-    def compute_final_node_representations(self, inputs, training: bool):
+    def compute_final_node_representations(self, inputs, training: Optional[bool]):
         # Pack input data from keys back into a tuple:
         adjacency_lists: Tuple[tf.Tensor, ...] = tuple(
             inputs[f"adjacency_list_{edge_type_idx}"]
@@ -104,7 +104,7 @@ class GraphTaskModel(tf.keras.Model):
                                return_all_representations=self._use_intermediate_gnn_results)
         return gnn_output
 
-    def call(self, inputs, training: bool):
+    def call(self, inputs, training: Optional[bool]):
         final_node_representations = self.compute_final_node_representations(inputs, training)
         return self.compute_task_output(inputs, final_node_representations, training)
 

@@ -75,7 +75,6 @@ class RGIN(GNN_Edge_MLP):
         self._aggregation_mlp: Optional[MLP] = None
 
     def build(self, input_shapes: MessagePassingInput):
-        node_embedding_shapes = input_shapes.node_embeddings
         if self._num_aggr_MLP_hidden_layers is not None:
             with tf.name_scope("aggregation_MLP"):
                 self._aggregation_mlp = MLP(
@@ -91,7 +90,7 @@ class RGIN(GNN_Edge_MLP):
             messages_per_type: List[tf.Tensor],
             edge_type_to_message_targets: List[tf.Tensor],
             num_nodes: tf.Tensor,
-            training: bool,
+            training: Optional[bool],
     ):
         # Let M be the number of messages (sum of all E):
         message_targets = tf.concat(edge_type_to_message_targets, axis=0)  # Shape [M]

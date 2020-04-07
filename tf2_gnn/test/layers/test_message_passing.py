@@ -1,5 +1,5 @@
 """Tests for the MessagePassing layer."""
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 import numpy.testing as nt
 import pytest
@@ -19,7 +19,7 @@ class PassSourceStates(MessagePassing):
 
     def _message_function(self, edge_source_states: tf.Tensor, edge_target_states: tf.Tensor,
                           num_incoming_to_node_per_message: tf.Tensor, edge_type_idx: int,
-                          training: bool) -> tf.Tensor:
+                          training: Optional[bool]) -> tf.Tensor:
         return edge_source_states
 
 

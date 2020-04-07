@@ -51,7 +51,7 @@ class GraphRegressionTask(GraphTaskModel):
             self,
             batch_features: Dict[str, tf.Tensor],
             final_node_representations: tf.Tensor,
-            training: bool,
+            training: Optional[bool],
     ) -> Any:
         per_graph_results = self._node_to_graph_repr_layer(
             NodesToGraphRepresentationInput(

@@ -180,7 +180,7 @@ class GNN(tf.keras.layers.Layer):
                                     num_graphs=tf.TensorShape(()),
                                 ))
                             self._global_exchange_layers[str(layer_idx)] = exchange_layer
-
+        self._dropout = tf.keras.layers.Dropout(self._params["layer_input_dropout_rate"])
         super().build(tensor_shapes)
 
         # The following is needed to work around a limitation in the @tf.function annotation.
@@ -212,7 +212,7 @@ class GNN(tf.keras.layers.Layer):
 
     def call(self,
              inputs: GNNInput,
-             training: bool = False,
+             training: Optional[bool] = None,
              return_all_representations: bool = False):
         """
         Args:
@@ -255,7 +255,7 @@ class GNN(tf.keras.layers.Layer):
 
         return cur_node_representations
 
-    def _internal_call(self, inputs: GNNInput, training: bool = False):
+    def _internal_call(self, inputs: GNNInput, training: Optional[bool] = None):
         initial_node_features: tf.Tensor = inputs.node_features
         adjacency_lists = inputs.adjacency_lists
         cur_node_representations = self._initial_projection_layer(initial_node_features)
@@ -264,9 +264,7 @@ class GNN(tf.keras.layers.Layer):
         last_node_representations = cur_node_representations
         all_node_representations = [cur_node_representations]
         for layer_idx, mp_layer in enumerate(self._mp_layers):
-            if training:
-                cur_node_representations = tf.nn.dropout(
-                    cur_node_representations, rate=self._params["layer_input_dropout_rate"])
+            cur_node_representations = self._dropout(cur_node_representations, training=training)
 
             # Pass residuals through:
             if layer_idx % self._residual_every_num_layers == 0:

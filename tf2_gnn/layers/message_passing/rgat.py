@@ -1,5 +1,5 @@
 """Relation graph attention network layer."""
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Optional
 
 import tensorflow as tf
 from dpu_utils.tf2utils import unsorted_segment_log_softmax
@@ -94,7 +94,7 @@ class RGAT(MessagePassing):
             edge_target_states: tf.Tensor,
             num_incoming_to_node_per_message: tf.Tensor,
             edge_type_idx: int,
-            training: bool,
+            training: Optional[bool],
     ) -> tf.Tensor:
         per_head_dim = self._hidden_dim // self._num_heads
 
@@ -127,7 +127,7 @@ class RGAT(MessagePassing):
             messages_per_type: List[Tuple[tf.Tensor, tf.Tensor]],
             edge_type_to_message_targets: List[tf.Tensor],
             num_nodes: tf.Tensor,
-            training: bool,
+            training: Optional[bool],
     ):
         per_head_messages_per_type, per_head_attention_scores_per_type = zip(*messages_per_type)
 

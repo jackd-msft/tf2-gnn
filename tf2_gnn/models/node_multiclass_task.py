@@ -47,7 +47,7 @@ class NodeMulticlassTask(GraphTaskModel):
         super().build(input_shapes)
 
     def compute_task_output(self, batch_features, final_node_representations: tf.Tensor,
-                            training: bool):
+                            training: Optional[bool]):
         per_node_logits = self.node_to_labels_layer(final_node_representations)
         return (per_node_logits,)
 
