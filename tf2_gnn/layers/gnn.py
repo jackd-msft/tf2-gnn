@@ -138,7 +138,11 @@ class GNN(tf.keras.layers.Layer):
         self._global_exchange_dropout_rate = global_exchange_dropout_rate
 
         # Layer member variables. To be filled in in the `build` method.
-        self._initial_projection_layer: tf.keras.layers.Layer = None
+        self._initial_projection_layer = tf.keras.layers.Dense(
+            units=self._hidden_dim,
+            use_bias=False,
+            activation=self._initial_node_representation_activation,
+        )
         self._mp_layers: List[MessagePassing] = []
         self._inter_layer_layernorms: List[tf.keras.layers.Layer] = []
         self._dense_layers: Dict[str, tf.keras.layers.Layer] = {}
@@ -166,11 +170,6 @@ class GNN(tf.keras.layers.Layer):
         with tf.name_scope(f"{self._message_passing_class.__name__}_GNN"):
             # Then we construct the layers themselves:
             with tf.name_scope("gnn_initial_node_projection"):
-                self._initial_projection_layer = tf.keras.layers.Dense(
-                    units=self._hidden_dim,
-                    use_bias=False,
-                    activation=self._initial_node_representation_activation,
-                )
                 self._initial_projection_layer.build(variable_node_features_shape)
 
             # Construct the graph message passing layers.

@@ -1,0 +1,1 @@
+https://s3.us-east-2.amazonaws.com/dgl.ai/dataset/ppi.zip 7088822 1f5b2b09ac0f897fa6aa1338c64ab75a5473674cbba89380120bede8cddb2a6a

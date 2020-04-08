@@ -5,7 +5,7 @@ from typing import Dict, List, NamedTuple, Tuple, Optional
 import tensorflow as tf
 
 from tf2_gnn.utils.param_helpers import get_aggregation_function
-from tf2_gnn.utils.register import register
+from tf2_gnn.utils.register import register_custom_object
 
 
 class MessagePassingInput(NamedTuple):
@@ -205,7 +205,7 @@ MESSAGE_PASSING_IMPLEMENTATIONS: Dict[str, MessagePassing] = {}
 
 def register_message_passing_implementation(cls):
     """Decorator used to register a message passing class implementation"""
-    register(cls)
+    register_custom_object(cls)
     MESSAGE_PASSING_IMPLEMENTATIONS[cls.__name__.lower()] = cls
     return cls
 
