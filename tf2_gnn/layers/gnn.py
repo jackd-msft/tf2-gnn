@@ -17,7 +17,7 @@ from .graph_global_exchange import (
     GraphGlobalMLPExchange,
 )
 
-from ..utils.register import register_custom_object
+from ..utils.register import register_custom_object, get as _get
 
 activations = tf.keras.activations
 serialize_keras_object = tf.keras.utils.serialize_keras_object
@@ -89,12 +89,6 @@ class GNN(tf.keras.layers.Layer):
         })
         config.update(self._message_passing_kwargs)
         return config
-        # if mp_style is not None:
-        #     these_hypers["message_calculation_class"] = mp_style
-        # message_passing_class = get_message_passing_class(these_hypers["message_calculation_class"])
-        # message_passing_hypers = message_passing_class.get_default_hyperparameters()
-        # message_passing_hypers.update(these_hypers)
-        # return message_passing_hypers
 
     def __init__(
             self,
@@ -219,8 +213,8 @@ class GNN(tf.keras.layers.Layer):
                                     num_graphs=tf.TensorShape(()),
                                 ))
                             self._global_exchange_layers[str(layer_idx)] = exchange_layer
-        self._layer_input_dropout.build()
-        self._global_exchange_dropout.build()
+        self._layer_input_dropout.build(None)
+        self._global_exchange_dropout.build(None)
         super().build(tensor_shapes)
 
         # The following is needed to work around a limitation in the @tf.function annotation.
@@ -239,16 +233,16 @@ class GNN(tf.keras.layers.Layer):
         # handle this, we let the core function _always_ return all representations (and trace
         # that for performance reasons), and then use a thin wrapper `call` function to drop
         # the unneeded return value if needed.
-        internal_call_input_spec = (GNNInput(
-            node_features=tf.TensorSpec(shape=variable_node_features_shape, dtype=tf.float32),
-            adjacency_lists=tuple(
-                tf.TensorSpec(shape=(None, 2), dtype=tf.int32)
-                for _ in range(len(adjacency_list_shapes))),
-            node_to_graph_map=tf.TensorSpec(shape=(None,), dtype=tf.int32),
-            num_graphs=tf.TensorSpec(shape=(), dtype=tf.int32),
-        ), tf.TensorSpec(shape=(), dtype=tf.bool))
-        setattr(self, "_internal_call",
-                tf.function(func=self._internal_call, input_signature=internal_call_input_spec))
+        # internal_call_input_spec = (GNNInput(
+        #     node_features=tf.TensorSpec(shape=variable_node_features_shape, dtype=tf.float32),
+        #     adjacency_lists=tuple(
+        #         tf.TensorSpec(shape=(None, 2), dtype=tf.int32)
+        #         for _ in range(len(adjacency_list_shapes))),
+        #     node_to_graph_map=tf.TensorSpec(shape=(None,), dtype=tf.int32),
+        #     num_graphs=tf.TensorSpec(shape=(), dtype=tf.int32),
+        # ), tf.TensorSpec(shape=(), dtype=tf.bool))
+        # setattr(self, "_internal_call",
+        #         tf.function(func=self._internal_call, input_signature=internal_call_input_spec))
 
     def call(self,
              inputs: GNNInput,
@@ -344,6 +338,10 @@ class GNN(tf.keras.layers.Layer):
                     cur_node_representations, training=training)
 
         return cur_node_representations, all_node_representations
+
+
+def get(identifier) -> GNN:
+    return _get(identifier, GNN)
 
 
 if __name__ == "__main__":

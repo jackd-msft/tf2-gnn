@@ -51,6 +51,7 @@ class GNN_Edge_MLP(MessagePassing):
         self._use_target_state_as_input = use_target_state_as_input
         self._normalize_by_num_incoming = normalize_by_num_incoming
         self._recurrent_unit: tf.keras.layers.GRUCell = None
+        self._edge_type_mlps: List[MLP] = []
 
     def get_config(self) -> Dict[str, Any]:
         config = super().get_config()

@@ -69,7 +69,7 @@ class PPI(tfds.core.GeneratorBasedBuilder):
         node_labels = data_dir.join(f"{data_name}_labels.npy").read_by_file_suffix()
         # 1-based node value_rowids
         node_graph_ids = data_dir.join(f"{data_name}_graph_id.npy").read_by_file_suffix()
-        node_graph_ids -= 1  # make zero-based
+        node_graph_ids -= np.min(node_graph_ids)
 
         links = graph_data['links']
         links = np.array(tuple((link['source'], link['target']) for link in links), dtype=np.int64)
@@ -77,7 +77,9 @@ class PPI(tfds.core.GeneratorBasedBuilder):
             node_graph_ids, node_features, node_labels, links)
         for i in range(node_features.nrows().numpy()):
             yield i, dict(graph=dict(node_features=node_features[i], links=links[i]),
-                          node_labels=node_labels[i])
+                        node_labels=node_labels[i])
+
+
 
 
 if __name__ == '__main__':

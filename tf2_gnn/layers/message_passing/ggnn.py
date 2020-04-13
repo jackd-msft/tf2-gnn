@@ -46,13 +46,21 @@ class GGNN(GNN_Edge_MLP):
                  use_target_state_as_input: bool = False,
                  normalize_by_num_incoming: bool = True,
                  **kwargs):
+        kwargs['hidden_dim'] = None
         super().__init__(num_edge_MLP_hidden_layers=num_edge_MLP_hidden_layers,
                          use_target_state_as_input=use_target_state_as_input,
                          normalize_by_num_incoming=normalize_by_num_incoming,
                          **kwargs)
+        assert self._hidden_dim is None
+
+    def get_config(self):
+        config = super().get_config()
+        del config['hidden_dim']
+        return config
 
     def build(self, input_shapes: MessagePassingInput):
         node_embedding_shapes = input_shapes.node_embeddings
+        self._hidden_dim = node_embedding_shapes[-1]
         self._recurrent_unit = tf.keras.layers.GRUCell(units=self._hidden_dim)
         self._recurrent_unit.build(tf.TensorShape((None, node_embedding_shapes[-1])))
         super().build(input_shapes)
@@ -68,7 +76,6 @@ class GGNN(GNN_Edge_MLP):
         aggregated_messages = self._aggregation_fn(data=messages,
                                                    segment_ids=message_targets,
                                                    num_segments=num_nodes)
-
         new_node_embeddings, _ = self._recurrent_unit(inputs=aggregated_messages,
                                                       states=[cur_node_embeddings],
                                                       training=training)

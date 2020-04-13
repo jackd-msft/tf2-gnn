@@ -1,32 +1,22 @@
-from typing import Callable
+from typing import Union, Dict, Any, Optional, Sequence
 import tensorflow as tf
 
-_custom_objects = tf.keras.utils.get_custom_objects()
+PACKAGE = 'tf2_gnn'
+
+register_custom_object = tf.keras.utils.register_keras_serializable(PACKAGE)
 
 
-def register_custom_object(fn_or_class: Callable):
-    """
-    Register fn_or_class as a keras custom_object.
-
-    This allows it to be used with `tf.keras.*.get` methods and
-    `tf.keras.utils.deserialize_keras_object`
-
-    Example usage:
-    ```python
-    @register
-    def custom_activation(x):
-        return x + 1
-
-    ones = tf.keras.activations.get('custom_activation')(tf.zeros(5, 4))
-    layer = tf.keras.layers.Dense(activation='custom_activation')
-    ```
-
-    """
-    if not callable(fn_or_class):
-        raise ValueError(f'fn_or_class must be callable, got {fn_or_class}')
-
-    name = fn_or_class.__name__
-    if name in _custom_objects:
-        raise KeyError(f'Cannot register {name} - key already present')
-    _custom_objects[name] = fn_or_class
-    return fn_or_class
+def get(identifier: Union[str, Dict[str, Any]],
+        accepted_types=Optional[Union[type, Sequence[type]]]):
+    if accepted_types is not None and isinstance(identifier, accepted_types):
+        return identifier
+    if isinstance(identifier, str):
+        identifier = dict(class_name=identifier, config={})
+    assert isinstance(identifier, dict)
+    class_name = identifier['class_name']
+    if '>' not in class_name:
+        identifier['class_name'] = f'{PACKAGE}>{class_name}'
+    out = tf.keras.utils.deserialize_keras_object(identifier)
+    if accepted_types is not None and not isinstance(out, accepted_types):
+        raise ValueError(f'Expected type {accepted_types} but got {out} with type {type(out)}')
+    return out

@@ -1,0 +1,3 @@
+https://github.com/microsoft/tf-gnn-samples/raw/master/data/qm9/test.jsonl.gz 2062534 b34d2b43c9ad294ae30fac0d687e7a2cab320d81f88e10197d26df865d8fe5fc
+https://github.com/microsoft/tf-gnn-samples/raw/master/data/qm9/train.jsonl.gz 22744608 aa5274ea5f23d13f32a3373bf45eac0a1a4c7c3211a6371763bc24ab04457224
+https://github.com/microsoft/tf-gnn-samples/raw/master/data/qm9/valid.jsonl.gz 2061745 011b6f00034f06530fe9a07e0c7e33fb3ab81bddbcdefb59c7de44f6b07498e9

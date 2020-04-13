@@ -1,0 +1,14 @@
+import tf2_gnn.gin_interface
+compiler = None
+ROOT_DIR = '~/tf2-gnn'
+source/path = @path()
+source/path.parent = %ROOT_DIR
+source/path.folder = %source_id
+model/path.parent = @source/path()
+model/path.folder = %model_fn
+run/path.parent = @model/path()
+run/path.folder = %run_id
+
+model_dir = @run/path()
+
+model_fn = @node_multiclass_classifier

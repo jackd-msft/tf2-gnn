@@ -5,15 +5,21 @@ from tf2_gnn import GNNInput, GNN
 from tf2_gnn.layers import WeightedSumGraphRepresentation
 
 
-def as_gnn_inputs(node_features: tf.RaggedTensor, links: tf.Tensor, add_self_loop_edges: bool,
-                  tie_fwd_bkwd_edges: bool) -> GNNInput:
+def as_gnn_inputs(node_features: tf.RaggedTensor, links: Tuple[tf.Tensor, ...],
+                  add_self_loop_edges: bool, tie_fwd_bkwd_edges: bool) -> GNNInput:
     node_features.shape.assert_has_rank(3)
     assert node_features.ragged_rank == 1
-    links.shape.assert_has_rank(2)
-    assert links.shape[1] == 2
+    assert (len(links) >= 1)
+    links_dtype = links[0].dtype
+    for l in links:
+        l.shape.assert_has_rank(2)
+        assert l.shape[1] == 2
     node_features, node_to_graph_map, num_graphs = tf.keras.layers.Lambda(
         lambda x: (tf.identity(x.values), x.value_rowids(), x.nrows()))(node_features)
-    adjacency_lists = [links]
+    adjacency_lists = list(links)
+    if tie_fwd_bkwd_edges:
+        adjacency_lists.extend((tf.reverse(l, axis=[1]) for l in links))
+
     if add_self_loop_edges:
 
         def get_self_loops(flat_node_features, dtype):
@@ -21,17 +27,18 @@ def as_gnn_inputs(node_features: tf.RaggedTensor, links: tf.Tensor, add_self_loo
             return tf.tile(tf.expand_dims(tf.range(num_nodes), axis=-1), (1, 2))
 
         self_loops = tf.keras.layers.Lambda(get_self_loops,
-                                            arguments=dict(dtype=links.dtype))(node_features)
+                                            arguments=dict(dtype=links_dtype))(node_features)
         adjacency_lists.append(self_loops)
-    if tie_fwd_bkwd_edges:
-        adjacency_lists.append(tf.reverse(links, axis=[1]))
+
     return GNNInput(node_features=node_features,
                     adjacency_lists=tuple(adjacency_lists),
                     node_to_graph_map=node_to_graph_map,
                     num_graphs=num_graphs)
 
 
-def _spec_to_input(spec: tf.TensorSpec):
+def _spec_to_input(spec):
+    if isinstance(spec, tf.RaggedTensorSpec):
+        return tf.keras.Input(batch_shape=spec._shape, dtype=spec._dtype, ragged=True)
     return tf.keras.Input(batch_shape=spec.shape, dtype=spec.dtype)
 
 
@@ -71,9 +78,11 @@ def get_optimizer(
 
 
 def _gnn_outputs(gnn_input: GNNInput, use_intermediate_gnn_results=False, **kwargs):
+    message_calculation_class = kwargs.pop('message_calculation_class')
     assert all(n.startswith('gnn_') for n in kwargs)
     kwargs = {k[4:]: v for k, v in kwargs.items()}
-    gnn_outputs = GNN(**kwargs)(gnn_input, return_all_representations=use_intermediate_gnn_results)
+    gnn_outputs = GNN(message_calculation_class=message_calculation_class,
+                      **kwargs)(gnn_input, return_all_representations=use_intermediate_gnn_results)
     return gnn_outputs
 
 
@@ -103,8 +112,7 @@ def _graph_outputs(model_input,
 
 
 def graph_binary_classifier(input_specs,
-                            metadata: Dict[str, Any] = {},
-                            optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
+                            optimizer,
                             graph_aggregation_num_heads: int = 16,
                             graph_aggregation_hidden_layers: List[int] = [128],
                             graph_aggregation_dropout_rate: float = 0.2,
@@ -124,15 +132,15 @@ def graph_binary_classifier(input_specs,
         **gnn_kwargs)
     logits = tf.keras.layers.Dense(units=1, activation=None, use_bias=True)(per_graph_results)
     model = tf.keras.Model(inputs=model_input, outputs=logits)
-    model.compile(optimizer=get_optimizer() if optimizer is None else optimizer,
+    model.compile(optimizer=optimizer,
                   loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
                   metrics=[tf.keras.metrics.BinaryAccuracy(threshold=0.0)])
     return model
 
 
 def graph_regressor(input_specs,
-                    metadata: Dict[str, Any] = {},
-                    optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
+                    num_targets: Optional[int] = None,
+                    optimizer=None,
                     graph_aggregation_num_heads: int = 16,
                     graph_aggregation_hidden_layers: List[int] = [128],
                     graph_aggregation_dropout_rate: float = 0.2,
@@ -150,17 +158,20 @@ def graph_regressor(input_specs,
         use_intermediate_gnn_results=use_intermediate_gnn_results,
         **gnn_kwargs)
 
-    output = tf.reduce_sum(per_graph_results, axis=-1)  # shape [G]
+    if num_targets is not None:
+        output = tf.keras.layers.Dense(num_targets)(per_graph_results)
+    else:
+        output = tf.reduce_sum(per_graph_results, axis=-1)  # shape [G]
     model = tf.keras.Model(inputs=model_input, outputs=output)
-    model.compile(optimizer=get_optimizer() if optimizer is None else optimizer,
+    model.compile(optimizer=optimizer or get_optimizer(),
                   loss=tf.keras.losses.MeanSquaredError(),
                   metrics=[tf.keras.metrics.MeanAbsoluteError()])
     return model
 
 
 def node_multiclass_classifier(input_specs,
-                               metadata: Dict[str, Any] = {},
-                               optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
+                               num_classes: int,
+                               optimizer,
                                graph_aggregation_num_heads: int = 16,
                                graph_aggregation_hidden_layers: List[int] = [128],
                                graph_aggregation_dropout_rate: float = 0.2,
@@ -169,9 +180,6 @@ def node_multiclass_classifier(input_specs,
                                tie_fwd_bkwd_edges: bool = False,
                                **gnn_kwargs) -> tf.keras.Model:
     from tensorflow_addons.metrics import F1Score
-    num_classes = metadata.get('num_classes')
-    if num_classes is None:
-        raise ValueError('num_classes must be a key of metadata')
     model_input = spec_to_input(input_specs)
     gnn_input = as_gnn_inputs(**model_input,
                               add_self_loop_edges=add_self_loop_edges,
@@ -179,7 +187,7 @@ def node_multiclass_classifier(input_specs,
     gnn_outputs = _gnn_outputs(gnn_input, use_intermediate_gnn_results, **gnn_kwargs)
     per_node_logits = tf.keras.layers.Dense(num_classes)(gnn_outputs)
     model = tf.keras.Model(inputs=model_input, outputs=per_node_logits)
-    model.compile(optimizer=get_optimizer() if optimizer is None else optimizer,
+    model.compile(optimizer=optimizer,
                   loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
                   metrics=[
                       tf.keras.metrics.BinaryAccuracy(threshold=0.0),

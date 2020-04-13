@@ -38,8 +38,8 @@ class MessagePassing(tf.keras.layers.Layer):
 
     def __init__(
             self,
-            aggregation_function: str = "sum",  # One of relu, leaky_relu, elu, gelu, tanh
-            message_activation="relu",
+            aggregation_function: str = "sum",
+            message_activation="relu",  # One of relu, leaky_relu, elu, gelu, tanh
             hidden_dim: int = 7,
             **kwargs):
         super().__init__(**kwargs)

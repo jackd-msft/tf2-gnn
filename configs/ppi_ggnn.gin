@@ -1,0 +1,27 @@
+include 'base.gin'
+
+source = @ppi()
+source_id = 'ppi'
+model_fn = @node_multiclass_classifier
+
+ppi.max_nodes_per_batch = 8000
+
+node_multiclass_classifier.message_calculation_class = 'ggnn'
+node_multiclass_classifier.gnn_num_layers = 3
+node_multiclass_classifier.gnn_hidden_dim = 320
+node_multiclass_classifier.gnn_use_target_state_as_input = False
+node_multiclass_classifier.gnn_normalize_by_num_incoming = False
+node_multiclass_classifier.gnn_num_edge_MLP_hidden_layers = 0
+node_multiclass_classifier.gnn_layer_input_dropout_rate = 0.1
+node_multiclass_classifier.gnn_dense_every_num_layers = 10000
+node_multiclass_classifier.gnn_residual_every_num_layers = 10000
+node_multiclass_classifier.gnn_global_exchange_every_num_layers = 10000
+node_multiclass_classifier.gnn_use_inter_layer_layernorm = False
+node_multiclass_classifier.gnn_initial_node_representation_activation = "tanh"
+node_multiclass_classifier.gnn_dense_intermediate_layer_activation = "tanh"
+node_multiclass_classifier.gnn_message_activation = "tanh"
+node_multiclass_classifier.gnn_aggregation_function = "sum"
+
+node_multiclass_classifier.optimizer = @get_optimizer()
+
+epochs = 1000
