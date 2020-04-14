@@ -62,7 +62,7 @@ class RGAT(MessagePassing):
     def build(self, input_shapes: MessagePassingInput):
         node_embedding_shapes = input_shapes.node_embeddings
         adjacency_list_shapes = input_shapes.adjacency_lists
-        num_edge_types = len(adjacency_list_shapes)
+        num_edge_types = self._num_edge_types(len(adjacency_list_shapes))
         per_head_dim = self._hidden_dim // self._num_heads
 
         for i in range(num_edge_types):

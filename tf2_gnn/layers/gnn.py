@@ -200,6 +200,9 @@ class GNN(tf.keras.layers.Layer):
                                 exchange_layer_class = GraphGlobalGRUExchange
                             elif self._global_exchange_mode.lower() == "mlp":
                                 exchange_layer_class = GraphGlobalMLPExchange
+                            else:
+                                raise RuntimeError(
+                                    f'Invalid global_exchange_mode {self._global_exchange_mode}')
                             exchange_layer = exchange_layer_class(
                                 hidden_dim=self._hidden_dim,
                                 weighting_fun=self._global_exchange_weighting_fun,
@@ -279,7 +282,7 @@ class GNN(tf.keras.layers.Layer):
             A pair, first element as for return_all_representations=False, second element a  list
             of Tensors of shape [V, hidden_dim], where the first element is the original GNN
             input (after a potential projection layer) and the remaining elements are the
-            output of all GNN layers (without dropout, residual connections, dense layers 
+            output of all GNN layers (without dropout, residual connections, dense layers
             or layer norm applied).
         """
         cur_node_representations, all_node_representations = self._internal_call(inputs, training)

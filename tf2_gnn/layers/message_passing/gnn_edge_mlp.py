@@ -65,7 +65,7 @@ class GNN_Edge_MLP(MessagePassing):
     def build(self, input_shapes: MessagePassingInput):
         node_embedding_shapes = input_shapes.node_embeddings
         adjacency_list_shapes = input_shapes.adjacency_lists
-        num_edge_types = len(adjacency_list_shapes)
+        num_edge_types = self._num_edge_types(len(adjacency_list_shapes))
 
         if self._use_target_state_as_input:
             edge_layer_input_size = 2 * node_embedding_shapes[-1]

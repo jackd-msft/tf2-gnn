@@ -41,6 +41,8 @@ class MessagePassing(tf.keras.layers.Layer):
             aggregation_function: str = "sum",
             message_activation="relu",  # One of relu, leaky_relu, elu, gelu, tanh
             hidden_dim: int = 7,
+            add_self_loop_edges: bool = True,
+            tie_fwd_bkwd_edges: bool = True,
             **kwargs):
         super().__init__(**kwargs)
         self._hidden_dim = hidden_dim
@@ -48,6 +50,8 @@ class MessagePassing(tf.keras.layers.Layer):
         self._aggregation_fn_name = aggregation_function
         self._aggregation_fn = get_aggregation_function(aggregation_function)
         self._message_activation = tf.keras.activations.get(message_activation)
+        self._add_self_loop_edges = add_self_loop_edges
+        self._tie_fwd_bkwd_edges = tie_fwd_bkwd_edges
 
     def get_config(self):
         config = super().get_config()
@@ -55,8 +59,18 @@ class MessagePassing(tf.keras.layers.Layer):
             "aggregation_function": self._aggregation_fn_name,
             "message_activation": tf.keras.utils.serialize_keras_object(self._message_activation),
             "hidden_dim": self._hidden_dim,
+            "add_self_loop_edges": self._add_self_loop_edges,
+            "tie_fwd_bkwd_edges": self._tie_fwd_bkwd_edges,
         })
         return config
+
+    def _num_edge_types(self, num_adjacency_lists):
+        num_edge_types = num_adjacency_lists
+        if not self._tie_fwd_bkwd_edges:
+            num_edge_types *= 2
+        if self._add_self_loop_edges:
+            num_edge_types += 1
+        return num_edge_types
 
     @abstractmethod
     def _message_function(
@@ -107,12 +121,8 @@ class MessagePassing(tf.keras.layers.Layer):
         node_embeddings, adjacency_lists = inputs.node_embeddings, inputs.adjacency_lists
         num_nodes = tf.shape(node_embeddings)[0]
 
-        messages_per_type = self._calculate_messages_per_type(adjacency_lists, node_embeddings,
-                                                              training)
-
-        edge_type_to_message_targets = [
-            adjacency_list_for_edge_type[:, 1] for adjacency_list_for_edge_type in adjacency_lists
-        ]
+        messages_per_type, edge_type_to_message_targets = self._calculate_messages_per_type(
+            adjacency_lists, node_embeddings, num_nodes, training)
 
         new_node_states = self._compute_new_node_embeddings(
             node_embeddings,
@@ -167,37 +177,67 @@ class MessagePassing(tf.keras.layers.Layer):
             self,
             adjacency_lists: Tuple[tf.Tensor, ...],
             node_embeddings: tf.Tensor,
+            num_nodes: tf.Tensor,
             training: Optional[bool] = None,
-    ) -> List[tf.Tensor]:
+    ) -> Tuple[List[tf.Tensor], List[tf.Tensor]]:
         messages_per_type = []  # list of tensors of messages of shape [E, H]
+        targets_per_type = []
 
-        # Calculate this once.
-        type_to_num_incoming_edges = calculate_type_to_num_incoming_edges(
-            node_embeddings, adjacency_lists)
-        # Collect incoming messages per edge type
-        for edge_type_idx, adjacency_list_for_edge_type in enumerate(adjacency_lists):
-            edge_sources = adjacency_list_for_edge_type[:, 0]
-            edge_targets = adjacency_list_for_edge_type[:, 1]
-            edge_source_states = tf.nn.embedding_lookup(params=node_embeddings,
-                                                        ids=edge_sources)  # Shape [E, H]
-            edge_target_states = tf.nn.embedding_lookup(params=node_embeddings,
-                                                        ids=edge_targets)  # Shape [E, H]
+        def num_incoming(targets):
+            targets.shape.assert_has_rank(1)
+            indices = tf.expand_dims(targets, axis=-1)
+            return tf.scatter_nd(
+                indices=indices,
+                updates=tf.ones_like(targets, dtype=tf.float32),
+                shape=(num_nodes,),
+            )
 
-            num_incoming_to_node_per_message = tf.nn.embedding_lookup(
-                params=type_to_num_incoming_edges[edge_type_idx, :],
-                ids=edge_targets)  # Shape [E, H]
+        def add_message_data(source_states, target_states, targets, edge_type_idx):
+            num_incoming_to_node_per_message = tf.nn.embedding_lookup(params=num_incoming(targets),
+                                                                      ids=targets)  # Shape [E, H]
 
             # Calculate the messages themselves:
             messages = self._message_function(
-                edge_source_states,
-                edge_target_states,
+                source_states,
+                target_states,
                 num_incoming_to_node_per_message,
                 edge_type_idx,
                 training,
             )
 
             messages_per_type.append(messages)
-        return messages_per_type
+            targets_per_type.append(targets)
+
+        # Collect incoming messages per edge type
+        for edge_type_idx, adjacency_list_for_edge_type in enumerate(adjacency_lists):
+            edge_sources, edge_targets = tf.unstack(adjacency_list_for_edge_type, axis=-1)
+
+            edge_source_states = tf.nn.embedding_lookup(params=node_embeddings,
+                                                        ids=edge_sources)  # Shape [E, H]
+            edge_target_states = tf.nn.embedding_lookup(params=node_embeddings,
+                                                        ids=edge_targets)  # Shape [E, H]
+
+            if self._tie_fwd_bkwd_edges:
+                edge_targets = tf.concat((edge_targets, edge_sources), axis=0)
+                edge_source_states, edge_target_states = (
+                    tf.concat((edge_source_states, edge_target_states), axis=0),
+                    tf.concat((edge_target_states, edge_source_states), axis=0),
+                )
+                add_message_data(edge_source_states, edge_target_states, edge_targets,
+                                 edge_type_idx)
+            else:
+                add_message_data(edge_source_states, edge_target_states, edge_targets,
+                                 2 * edge_type_idx)
+                add_message_data(edge_target_states, edge_source_states, edge_sources,
+                                 2 * edge_type_idx + 1)
+
+        if self._add_self_loop_edges:
+            messages = self._message_function(node_embeddings, node_embeddings,
+                                              tf.ones((num_nodes,), dtype=tf.float32), -1, training)
+            targets_per_type.append(tf.range(num_nodes, dtype=targets_per_type[-1].dtype))
+            messages_per_type.append(messages)
+
+        return messages_per_type, targets_per_type
 
 
 MESSAGE_PASSING_IMPLEMENTATIONS: Dict[str, MessagePassing] = {}
@@ -208,42 +248,6 @@ def register_message_passing_implementation(cls):
     register_custom_object(cls)
     MESSAGE_PASSING_IMPLEMENTATIONS[cls.__name__.lower()] = cls
     return cls
-
-
-def calculate_type_to_num_incoming_edges(node_embeddings, adjacency_lists):
-    """Calculate the type_to_num_incoming_edges tensor.
-
-        Returns:
-            float32 tensor of shape [L, V] representing the number of incoming edges of
-            a given type. Concretely, type_to_num_incoming_edges[l, v] is the number of
-            edge of type l connecting to node v.
-
-    >>> node_embeddings = tf.random.normal(shape=(5, 3))
-    >>> adjacency_lists = [
-    ...    tf.constant([[0, 1], [2, 4], [2, 4]], dtype=tf.int32),
-    ...    tf.constant([[2, 3], [2, 4]], dtype=tf.int32),
-    ...    tf.constant([[3, 1]], dtype=tf.int32),
-    ... ]
-    ...
-    >>> print(calculate_type_to_num_incoming_edges(node_embeddings, adjacency_lists))
-    tf.Tensor(
-    [[0. 1. 0. 0. 2.]
-     [0. 0. 0. 1. 1.]
-     [0. 1. 0. 0. 0.]], shape=(3, 5), dtype=float32)
-    """
-
-    type_to_num_incoming_edges = []
-    for edge_type_adjacency_list in adjacency_lists:
-        targets = edge_type_adjacency_list[:, 1]
-        indices = tf.expand_dims(targets, axis=-1)
-        num_incoming_edges = tf.scatter_nd(
-            indices=indices,
-            updates=tf.ones_like(targets, dtype=tf.float32),
-            shape=(tf.shape(node_embeddings)[0],),
-        )
-        type_to_num_incoming_edges.append(num_incoming_edges)
-
-    return tf.stack(type_to_num_incoming_edges)
 
 
 if __name__ == "__main__":

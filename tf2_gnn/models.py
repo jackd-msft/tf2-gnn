@@ -4,34 +4,87 @@ import tensorflow as tf
 from tf2_gnn import GNNInput, GNN
 from tf2_gnn.layers import WeightedSumGraphRepresentation
 
+K = tf.keras.backend
 
-def as_gnn_inputs(node_features: tf.RaggedTensor, links: Tuple[tf.Tensor, ...],
-                  add_self_loop_edges: bool, tie_fwd_bkwd_edges: bool) -> GNNInput:
+
+class ModifiedMicroF1(tf.keras.metrics.Metric):
+
+    def __init__(self, name='custom_micro_f1'):
+        super().__init__(name=name)
+        self.total = self.add_weight('total', initializer='zeros', dtype=tf.float32)
+        self.counter = self.add_weight('counter', initializer='zeros', dtype=tf.int32)
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        if sample_weight is not None:
+            raise NotImplementedError()
+        predicted = tf.cast(y_pred > 0, tf.int32)
+        labels = tf.cast(y_true, tf.int32)
+
+        true_pos = tf.math.count_nonzero(predicted * labels)
+        false_pos = tf.math.count_nonzero(predicted * (labels - 1))
+        false_neg = tf.math.count_nonzero((predicted - 1) * labels)
+
+        true_pos = tf.cast(true_pos, tf.float32)
+        false_neg = tf.cast(false_neg, tf.float32)
+        false_pos = tf.cast(false_pos, tf.float32)
+
+        precision = true_pos / (true_pos + false_pos)
+        recall = true_pos / (true_pos + false_neg)
+        fmeasure = (2 * precision * recall) / (precision + recall)
+        self.total.assign_add(fmeasure)
+        self.counter.assign_add(1)
+
+    def result(self):
+        return self.total / tf.cast(self.counter, tf.float32)
+
+
+class ModifiedBinaryCrossentropy(tf.keras.losses.Loss):
+
+    def __init__(self, from_logits: bool = True, **kwargs):
+        self.from_logits = from_logits
+        super().__init__(**kwargs)
+
+    def call(self, y_true, y_pred):
+        y_true = tf.cast(y_true, y_pred.dtype)
+        loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=y_pred, labels=y_true)
+        return tf.reduce_mean(tf.reduce_sum(loss, axis=-1))
+        # return K.sum(K.binary_crossentropy(
+        #     y_true, y_pred, from_logits=self.from_logits), axis=-1)
+
+
+def as_gnn_inputs(node_features: tf.RaggedTensor, links: Tuple[tf.Tensor, ...]) -> GNNInput:
     node_features.shape.assert_has_rank(3)
     assert node_features.ragged_rank == 1
     assert (len(links) >= 1)
-    links_dtype = links[0].dtype
+    # links_dtype = links[0].dtype
     for l in links:
         l.shape.assert_has_rank(2)
         assert l.shape[1] == 2
     node_features, node_to_graph_map, num_graphs = tf.keras.layers.Lambda(
         lambda x: (tf.identity(x.values), x.value_rowids(), x.nrows()))(node_features)
-    adjacency_lists = list(links)
-    if tie_fwd_bkwd_edges:
-        adjacency_lists.extend((tf.reverse(l, axis=[1]) for l in links))
+    # adjacency_lists = list(links)
+    # back_adjacency_lists = (tf.reverse(l, axis=[1]) for l in links)
+    # if tie_fwd_bkwd_edges:
+    #     adjacency_lists.extend(back_adjacency_lists)
+    # else:
+    #     # concat reversed
+    #     adjacency_lists = [
+    #         tf.concat((fwd, bkwd), axis=0)
+    #         for fwd, bkwd in zip(adjacency_lists, back_adjacency_lists)
+    #     ]
 
-    if add_self_loop_edges:
+    # if add_self_loop_edges:
 
-        def get_self_loops(flat_node_features, dtype):
-            num_nodes = tf.shape(flat_node_features, out_type=dtype)[0]
-            return tf.tile(tf.expand_dims(tf.range(num_nodes), axis=-1), (1, 2))
+    #     def get_self_loops(flat_node_features, dtype):
+    #         num_nodes = tf.shape(flat_node_features, out_type=dtype)[0]
+    #         return tf.tile(tf.expand_dims(tf.range(num_nodes), axis=-1), (1, 2))
 
-        self_loops = tf.keras.layers.Lambda(get_self_loops,
-                                            arguments=dict(dtype=links_dtype))(node_features)
-        adjacency_lists.append(self_loops)
+    #     self_loops = tf.keras.layers.Lambda(get_self_loops,
+    #                                         arguments=dict(dtype=links_dtype))(node_features)
+    #     adjacency_lists.append(self_loops)
 
     return GNNInput(node_features=node_features,
-                    adjacency_lists=tuple(adjacency_lists),
+                    adjacency_lists=links,
                     node_to_graph_map=node_to_graph_map,
                     num_graphs=num_graphs)
 
@@ -77,11 +130,14 @@ def get_optimizer(
         raise Exception(f'Unknown optimizer {optimizer}".')
 
 
-def _gnn_outputs(gnn_input: GNNInput, use_intermediate_gnn_results=False, **kwargs):
-    message_calculation_class = kwargs.pop('message_calculation_class')
+def _gnn_outputs(gnn_input: GNNInput, use_intermediate_gnn_results: bool,
+                 message_calculation_class: str, add_self_loop_edges: bool,
+                 tie_fwd_bkwd_edges: bool, **kwargs):
     assert all(n.startswith('gnn_') for n in kwargs)
     kwargs = {k[4:]: v for k, v in kwargs.items()}
     gnn_outputs = GNN(message_calculation_class=message_calculation_class,
+                      add_self_loop_edges=add_self_loop_edges,
+                      tie_fwd_bkwd_edges=tie_fwd_bkwd_edges,
                       **kwargs)(gnn_input, return_all_representations=use_intermediate_gnn_results)
     return gnn_outputs
 
@@ -94,10 +150,12 @@ def _graph_outputs(model_input,
                    add_self_loop_edges: bool = True,
                    tie_fwd_bkwd_edges: bool = True,
                    **gnn_kwargs):
-    gnn_input = as_gnn_inputs(**model_input,
-                              add_self_loop_edges=add_self_loop_edges,
-                              tie_fwd_bkwd_edges=tie_fwd_bkwd_edges)
-    gnn_outputs = _gnn_outputs(gnn_input, use_intermediate_gnn_results, **gnn_kwargs)
+    gnn_input = as_gnn_inputs(**model_input)
+    gnn_outputs = _gnn_outputs(gnn_input,
+                               use_intermediate_gnn_results,
+                               add_self_loop_edges=add_self_loop_edges,
+                               tie_fwd_bkwd_edges=tie_fwd_bkwd_edges,
+                               **gnn_kwargs)
     per_graph_results = WeightedSumGraphRepresentation(
         graph_representation_size=graph_aggregation_num_heads,
         num_heads=graph_aggregation_num_heads,
@@ -152,10 +210,12 @@ def graph_regressor(input_specs,
     model_input = spec_to_input(input_specs)
     per_graph_results = _graph_outputs(
         model_input,
+        use_intermediate_gnn_results=use_intermediate_gnn_results,
+        add_self_loop_edges=add_self_loop_edges,
+        tie_fwd_bkwd_edges=tie_fwd_bkwd_edges,
         graph_aggregation_num_heads=graph_aggregation_num_heads,
         graph_aggregation_hidden_layers=graph_aggregation_hidden_layers,
         graph_aggregation_dropout_rate=graph_aggregation_dropout_rate,
-        use_intermediate_gnn_results=use_intermediate_gnn_results,
         **gnn_kwargs)
 
     if num_targets is not None:
@@ -179,18 +239,23 @@ def node_multiclass_classifier(input_specs,
                                add_self_loop_edges: bool = True,
                                tie_fwd_bkwd_edges: bool = False,
                                **gnn_kwargs) -> tf.keras.Model:
-    from tensorflow_addons.metrics import F1Score
+    # from tensorflow_addons.metrics import F1Score
     model_input = spec_to_input(input_specs)
-    gnn_input = as_gnn_inputs(**model_input,
-                              add_self_loop_edges=add_self_loop_edges,
-                              tie_fwd_bkwd_edges=tie_fwd_bkwd_edges)
-    gnn_outputs = _gnn_outputs(gnn_input, use_intermediate_gnn_results, **gnn_kwargs)
+    gnn_input = as_gnn_inputs(**model_input)
+    gnn_outputs = _gnn_outputs(gnn_input,
+                               use_intermediate_gnn_results,
+                               add_self_loop_edges=add_self_loop_edges,
+                               tie_fwd_bkwd_edges=tie_fwd_bkwd_edges,
+                               **gnn_kwargs)
     per_node_logits = tf.keras.layers.Dense(num_classes)(gnn_outputs)
     model = tf.keras.Model(inputs=model_input, outputs=per_node_logits)
-    model.compile(optimizer=optimizer,
-                  loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
-                  metrics=[
-                      tf.keras.metrics.BinaryAccuracy(threshold=0.0),
-                      F1Score(num_classes=num_classes, threshod=0.0)
-                  ])
+    model.compile(
+        optimizer=optimizer,
+        #   loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+        loss=ModifiedBinaryCrossentropy(from_logits=True),
+        metrics=[
+            tf.keras.metrics.BinaryAccuracy(threshold=0.0),
+            #   F1Score(num_classes=num_classes, threshod=0.0, average='micro')
+            ModifiedMicroF1()
+        ])
     return model
