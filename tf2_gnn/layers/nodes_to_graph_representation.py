@@ -1,6 +1,6 @@
 """Graph representation aggregation layer."""
 from abc import abstractmethod
-from typing import List, NamedTuple
+from typing import List, NamedTuple, Optional
 
 import tensorflow as tf
 from dpu_utils.tf2utils import MLP, get_activation_function_by_name, unsorted_segment_softmax
@@ -30,7 +30,7 @@ class NodesToGraphRepresentation(tf.keras.layers.Layer):
         self._graph_representation_size = graph_representation_size
 
     @abstractmethod
-    def call(self, inputs: NodesToGraphRepresentationInput, training: bool = False):
+    def call(self, inputs: NodesToGraphRepresentationInput, training: Optional[bool] = None):
         """Call the layer.
 
         Args:
@@ -153,8 +153,10 @@ class WeightedSumGraphRepresentation(NodesToGraphRepresentation):
             tf.TensorSpec(shape=(), dtype=tf.bool),
         )
     )
-    def call(self, inputs: NodesToGraphRepresentationInput, training: bool = False):
+    def call(self, inputs: NodesToGraphRepresentationInput, training: Optional[bool] = None):
         # (1) compute weights for each node/head pair:
+        if training is None:
+            training = tf.keras.backend.learning_phase()
         if self._weighting_fun not in ("none", "average"):
             scores = self._scoring_mlp(inputs.node_embeddings, training=training)  # Shape [V, H]
             if self._weighting_fun == "sigmoid":

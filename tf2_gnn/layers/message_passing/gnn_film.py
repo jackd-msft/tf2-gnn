@@ -1,5 +1,5 @@
 """Graph neural network layer using feature-wise linear modulation to compute edge messages."""
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 import tensorflow as tf
 from dpu_utils.tf2utils import MLP
@@ -86,7 +86,7 @@ class GNN_FiLM(GNN_Edge_MLP):
         edge_target_states: tf.Tensor,
         num_incoming_to_node_per_message: tf.Tensor,
         edge_type_idx: int,
-        training: bool,
+        training: Optional[bool],
     ) -> tf.Tensor:
         messages = super()._message_function(
             edge_source_states,

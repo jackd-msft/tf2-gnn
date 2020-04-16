@@ -1,5 +1,5 @@
 """Graph neural network layer using MLPs to compute edge messages."""
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 import tensorflow as tf
 from dpu_utils.tf2utils import MLP
@@ -87,8 +87,10 @@ class GNN_Edge_MLP(MessagePassing):
         edge_target_states: tf.Tensor,
         num_incoming_to_node_per_message: tf.Tensor,
         edge_type_idx: int,
-        training: bool,
+        training: Optional[bool],
     ) -> tf.Tensor:
+        if training is None:
+            training = tf.keras.backend.learning_phase()
         if self._use_target_state_as_input:
             edge_mlp_inputs = tf.concat(
                 [edge_source_states, edge_target_states], axis=1

@@ -1,6 +1,6 @@
 """Message passing layer."""
 from abc import abstractmethod
-from typing import Dict, List, NamedTuple, Tuple, Any
+from typing import Dict, List, NamedTuple, Tuple, Any, Optional
 
 import tensorflow as tf
 
@@ -60,7 +60,7 @@ class MessagePassing(tf.keras.layers.Layer):
         edge_target_states: tf.Tensor,
         num_incoming_to_node_per_message: tf.Tensor,
         edge_type_idx: int,
-        training: bool,
+        training: Optional[bool],
     ) -> tf.Tensor:
         """Abstract method to calculate the messages passed from a source nodes to target nodes.
 
@@ -84,7 +84,7 @@ class MessagePassing(tf.keras.layers.Layer):
         """
         pass
 
-    def call(self, inputs: MessagePassingInput, training: bool = False):
+    def call(self, inputs: MessagePassingInput, training: Optional[bool] = None):
         """Call the message passing layer.
 
         Args:
@@ -122,7 +122,7 @@ class MessagePassing(tf.keras.layers.Layer):
         messages_per_type: List[tf.Tensor],
         edge_type_to_message_targets: List[tf.Tensor],
         num_nodes: tf.Tensor,
-        training: bool,
+        training: Optional[bool] = None,
     ):
         """Aggregate the messages using the aggregation function specified in the params dict.
 
@@ -159,7 +159,7 @@ class MessagePassing(tf.keras.layers.Layer):
         self,
         adjacency_lists: Tuple[tf.Tensor, ...],
         node_embeddings: tf.Tensor,
-        training: bool = False,
+        training: Optional[bool] = None,
     ) -> List[tf.Tensor]:
         messages_per_type = []  # list of tensors of messages of shape [E, H]
 

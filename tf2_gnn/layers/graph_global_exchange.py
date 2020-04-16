@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 import tensorflow as tf
 from dpu_utils.tf2utils import MLP
@@ -56,11 +56,12 @@ class GraphGlobalExchange(tf.keras.layers.Layer):
                 num_graphs=tensor_shapes.num_graphs,
             )
         )
+        self._dropout = tf.keras.layers.Dropout(self._dropout_rate)
 
         super().build(tensor_shapes)
 
     @abstractmethod
-    def call(self, inputs: GraphGlobalExchangeInput, training: bool = False):
+    def call(self, inputs: GraphGlobalExchangeInput, training: Optional[bool] = None):
         """
         Args:
             inputs: A GraphGlobalExchangeInput containing the following fields:
@@ -81,7 +82,7 @@ class GraphGlobalExchange(tf.keras.layers.Layer):
         pass
 
     def _compute_per_node_graph_representations(
-        self, inputs: GraphGlobalExchangeInput, training: bool = False
+        self, inputs: GraphGlobalExchangeInput, training: Optional[bool] = None
     ):
         cur_graph_representations = self._node_to_graph_representation_layer(
             NodesToGraphRepresentationInput(
@@ -96,11 +97,8 @@ class GraphGlobalExchange(tf.keras.layers.Layer):
             cur_graph_representations, inputs.node_to_graph_map
         )  # Shape [V, hidden_dim]
 
-        if training:
-            per_node_graph_representations = tf.nn.dropout(
-                per_node_graph_representations, rate=self._dropout_rate
-            )
-
+        per_node_graph_representations = self._dropout(
+            per_node_graph_representations, training=training)
         return per_node_graph_representations
 
 
@@ -119,7 +117,7 @@ class GraphGlobalMeanExchange(GraphGlobalExchange):
         with tf.name_scope(self.__class__.__name__):
             super().build(tensor_shapes)
 
-    def call(self, inputs: GraphGlobalExchangeInput, training: bool = False):
+    def call(self, inputs: GraphGlobalExchangeInput, training: Optional[bool] = None):
         per_node_graph_representations = self._compute_per_node_graph_representations(
             inputs, training
         )
@@ -143,7 +141,7 @@ class GraphGlobalGRUExchange(GraphGlobalExchange):
             self._gru_cell.build(tf.TensorShape((None, self._hidden_dim)))
             super().build(tensor_shapes)
 
-    def call(self, inputs: GraphGlobalExchangeInput, training: bool = False):
+    def call(self, inputs: GraphGlobalExchangeInput, training: Optional[bool] = None):
         per_node_graph_representations = self._compute_per_node_graph_representations(
             inputs, training
         )
@@ -172,7 +170,9 @@ class GraphGlobalMLPExchange(GraphGlobalExchange):
             self._mlp.build(tf.TensorShape((None, 2 * self._hidden_dim)))
             super().build(tensor_shapes)
 
-    def call(self, inputs: GraphGlobalExchangeInput, training: bool = False):
+    def call(self, inputs: GraphGlobalExchangeInput, training: Optional[bool] = None):
+        if training is None:
+            training = tf.keras.backend.learning_phase()
         per_node_graph_representations = self._compute_per_node_graph_representations(
             inputs, training
         )

@@ -91,7 +91,7 @@ class RGIN(GNN_Edge_MLP):
         messages_per_type: List[tf.Tensor],
         edge_type_to_message_targets: List[tf.Tensor],
         num_nodes: tf.Tensor,
-        training: bool,
+        training: Optional[bool],
     ):
         # Let M be the number of messages (sum of all E):
         message_targets = tf.concat(edge_type_to_message_targets, axis=0)  # Shape [M]
@@ -101,6 +101,8 @@ class RGIN(GNN_Edge_MLP):
             data=messages, segment_ids=message_targets, num_segments=num_nodes
         )
         if self._aggregation_mlp is not None:
+            if training is None:
+                training = tf.keras.backend.learning_phase()
             aggregated_messages = self._aggregation_mlp(aggregated_messages, training)
 
         return self._activation_fn(aggregated_messages)
