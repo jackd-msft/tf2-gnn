@@ -279,6 +279,8 @@ class GNN(tf.keras.layers.Layer):
         initial_node_features: tf.Tensor = inputs.node_features
         adjacency_lists = inputs.adjacency_lists
         cur_node_representations = self._initial_projection_layer(initial_node_features)
+        for v in self._global_exchange_layers.values():
+            v.reset_recurrent_state()
 
         # Layer loop.
         last_node_representations = cur_node_representations

@@ -33,6 +33,17 @@ class GraphGlobalExchange(tf.keras.layers.Layer):
         self._weighting_fun = weighting_fun
         self._num_heads = num_heads
         self._dropout_rate = dropout_rate
+    
+    def reset_recurrent_state(self) -> None:
+        """
+        Perform any state resetting that should be called before first element.
+
+        For example, implementations that use GRUCells should call
+        `tf.keras.layers.GRUCell.reset_dropout_mask` here.
+
+        It is up to the caller to call this prior to the first use in each `call`.
+        """
+        pass
 
     def build(self, tensor_shapes: GraphGlobalExchangeInput):
         """Build the various layers in the model.
@@ -134,6 +145,9 @@ class GraphGlobalGRUExchange(GraphGlobalExchange):
     ):
         """Initialise the layer."""
         super().__init__(hidden_dim, weighting_fun, num_heads, dropout_rate)
+    
+    def reset_recurrent_state(self) -> None:
+        self._gru_cell.reset_dropout_mask()
 
     def build(self, tensor_shapes: GraphGlobalExchangeInput):
         with tf.name_scope(self.__class__.__name__):
