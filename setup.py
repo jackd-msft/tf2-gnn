@@ -24,10 +24,11 @@ setuptools.setup(
         "tensorflow>=2.0.0",
         "dpu-utils>=0.2.7",
         "h5py",
+        "tensorflow-datasets",
     ],
     packages=setuptools.find_packages(where="."),
     package_dir={"": "."},
-    package_data={"": ["default_hypers/*.json"]},
+    package_data={"": ["default_hypers/*.json", "checksums_dir/*.txt"]},
     entry_points={
         "console_scripts": [
             "tf2_gnn_train = tf2_gnn.cli.train:run",
